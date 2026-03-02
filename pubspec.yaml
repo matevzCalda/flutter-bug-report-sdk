@@ -1,0 +1,20 @@
+name: calda_bug_sdk
+description: In-app bug reporting SDK with logs/errors/network + screenshot bundle.
+version: 0.1.0
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.4.0
+  http: ^1.2.0
+  meta: ^1.11.0
+
+flutter:
+  assets:
+    - assets/calda_bug_logo.png
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
