@@ -3,6 +3,75 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 
+Widget _buildAttachmentsSection(
+    BuildContext ctx, List<ReportAttachment> attachments) {
+  final videoAttachments =
+      attachments.where((a) => a.type == 'video').toList();
+  final imageAttachments =
+      attachments.where((a) => a.type == 'image').toList();
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (videoAttachments.isNotEmpty)
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Video recording',
+                style: Theme.of(ctx).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.videocam, size: 40),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${videoAttachments.length} video(s) · ${_formatBytes(videoAttachments.fold<int>(0, (s, a) => s + a.data.length))}',
+                    style: Theme.of(ctx).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      if (videoAttachments.isNotEmpty && imageAttachments.isNotEmpty)
+        const SizedBox(height: 8),
+      if (imageAttachments.isNotEmpty)
+        SizedBox(
+          height: 100,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: imageAttachments.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) {
+              final a = imageAttachments[i];
+              return SizedBox(
+                width: 100,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.memory(a.data, fit: BoxFit.cover),
+                ),
+              );
+            },
+          ),
+        ),
+    ],
+  );
+}
+
+String _formatBytes(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
 Future<bool?> showCaldaReportSheet(
   BuildContext context, {
   required Uint8List? screenshotPng,
@@ -42,46 +111,7 @@ Future<bool?> showCaldaReportSheet(
               const SizedBox(height: 12),
             ],
             if (attachments.isNotEmpty) ...[
-              SizedBox(
-                height: 120,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: attachments.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (_, i) {
-                    final a = attachments[i];
-                    if (a.type == 'video') {
-                      return Container(
-                        width: 160,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.videocam, size: 48),
-                              SizedBox(height: 4),
-                              Text('Video'),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                    return SizedBox(
-                      width: 120,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(
-                          a.data,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              _buildAttachmentsSection(ctx, attachments),
               const SizedBox(height: 12),
             ],
             if (reproductionSummary != null &&

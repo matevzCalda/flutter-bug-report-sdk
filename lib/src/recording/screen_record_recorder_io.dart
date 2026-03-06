@@ -20,9 +20,11 @@ class CaldaScreenRecordRecorder implements CaldaViewportRecorder {
   @override
   Future<Uint8List?> stop() async {
     await _controller.stop();
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     try {
       final file = await _controller.exporter.exportVideo(
         cacheFolder: 'calda_bug_recordings',
+        multiCache: true,
       );
       if (file == null || !file.existsSync()) return null;
       final bytes = await file.readAsBytes();

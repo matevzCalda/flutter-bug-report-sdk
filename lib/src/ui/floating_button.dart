@@ -180,6 +180,14 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       if (!mounted || _state != _FloatingState.recording) return;
       final videoBytes = await recorder.stop();
       if (!mounted) return;
+      if (videoBytes == null || videoBytes.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Recording could not be exported. Try again.')),
+          );
+        }
+      }
       final attachments = videoBytes != null && videoBytes.isNotEmpty
           ? [
               ReportAttachment(
@@ -212,6 +220,14 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
     _recordingTimer = null;
     final videoBytes = await recorder.stop();
     if (!mounted) return;
+    if (videoBytes == null || videoBytes.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Recording could not be exported. Try again.')),
+        );
+      }
+    }
     final attachments = videoBytes != null && videoBytes.isNotEmpty
         ? [
             ReportAttachment(
