@@ -1,5 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class AppInfo {
   final String name;
@@ -42,37 +44,107 @@ class SdkInfo {
 }
 
 class DeviceInfo {
-  final String platform; // ios|android|web|desktop
+  final String platform;
   final String os;
+  final String osVersion;
   final String locale;
   final String model;
+  final String manufacturer;
+  final String packageId;
+  final String appVersion;
+  final String appBuildNumber;
 
   const DeviceInfo({
     required this.platform,
     required this.os,
-    required this.locale,
-    required this.model,
+    this.osVersion = '',
+    this.locale = 'unknown',
+    this.model = 'unknown',
+    this.manufacturer = '',
+    this.packageId = '',
+    this.appVersion = '',
+    this.appBuildNumber = '',
   });
 
   static Future<DeviceInfo> collect() async {
-    // Skeleton: replace with device_info_plus etc if you want more.
     final p = kIsWeb
         ? 'web'
         : (Platform.isIOS
-              ? 'ios'
-              : Platform.isAndroid
-              ? 'android'
-              : 'desktop');
+            ? 'ios'
+            : Platform.isAndroid
+                ? 'android'
+                : 'desktop');
     final os = kIsWeb ? 'web' : Platform.operatingSystem;
-    return DeviceInfo(platform: p, os: os, locale: 'unknown', model: 'unknown');
+    String osVersion = '';
+    String model = 'unknown';
+    String manufacturer = '';
+    String packageId = '';
+    String appVersion = '';
+    String appBuildNumber = '';
+
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      if (Platform.isAndroid) {
+        final android = await deviceInfo.androidInfo;
+        osVersion = '${android.version.release} (SDK ${android.version.sdkInt})';
+        model = android.model;
+        manufacturer = android.manufacturer;
+      } else if (Platform.isIOS) {
+        final ios = await deviceInfo.iosInfo;
+        osVersion = ios.systemVersion;
+        model = ios.utsname.machine;
+        manufacturer = 'Apple';
+      } else if (kIsWeb) {
+        final web = await deviceInfo.webBrowserInfo;
+        model = '${web.browserName.name} ${web.appVersion}';
+        osVersion = web.platform ?? '';
+      }
+    } catch (_) {}
+
+    try {
+      final info = await PackageInfo.fromPlatform();
+      packageId = info.packageName;
+      appVersion = info.version;
+      appBuildNumber = info.buildNumber;
+    } catch (_) {}
+
+    return DeviceInfo(
+      platform: p,
+      os: os,
+      osVersion: osVersion,
+      model: model,
+      manufacturer: manufacturer,
+      packageId: packageId,
+      appVersion: appVersion,
+      appBuildNumber: appBuildNumber,
+    );
+  }
+
+  Map<String, String> toDisplayMap() {
+    final m = <String, String>{
+      'Platform': platform,
+      'OS': os,
+      if (osVersion.isNotEmpty) 'OS version': osVersion,
+      'Model': model,
+      if (manufacturer.isNotEmpty) 'Manufacturer': manufacturer,
+      if (packageId.isNotEmpty) 'Package / Bundle ID': packageId,
+      if (appVersion.isNotEmpty) 'App version': appVersion,
+      if (appBuildNumber.isNotEmpty) 'Build': appBuildNumber,
+    };
+    return m;
   }
 
   Map<String, Object?> toJson() => {
-    'platform': platform,
-    'os': os,
-    'locale': locale,
-    'model': model,
-  };
+        'platform': platform,
+        'os': os,
+        'osVersion': osVersion,
+        'locale': locale,
+        'model': model,
+        'manufacturer': manufacturer,
+        'packageId': packageId,
+        'appVersion': appVersion,
+        'appBuildNumber': appBuildNumber,
+      };
 }
 
 @immutable

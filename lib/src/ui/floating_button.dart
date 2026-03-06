@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../calda_bug_sdk.dart';
+import '../models.dart';
 import '../screenshot/capture.dart';
 import 'report_sheet.dart';
 
@@ -34,12 +35,21 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
               : () async {
                   setState(() => _busy = true);
                   final png = await capturePng(widget.repaintKey);
-                  final consoleLines = CaldaBug.getLastLogLines(limit: 200);
+                  final consoleLines = CaldaBug.getLastLogLines(limit: 500);
+                  final deviceInfo = await DeviceInfo.collect();
+                  final deviceInfoMap = deviceInfo.toDisplayMap();
+                  deviceInfoMap['Theme'] =
+                      Theme.of(context).brightness == Brightness.dark
+                          ? 'dark'
+                          : 'light';
+                  deviceInfoMap['Locale'] =
+                      Localizations.localeOf(context).toString();
                   if (!mounted) return;
                   final send = await showCaldaReportSheet(
                     context,
                     screenshotPng: png,
                     consoleLines: consoleLines,
+                    deviceInfo: deviceInfoMap,
                   );
                   if (send != true) {
                     if (mounted) setState(() => _busy = false);

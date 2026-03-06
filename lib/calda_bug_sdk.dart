@@ -79,7 +79,7 @@ class CaldaBug {
     _buffer.add(event);
   }
 
-  static List<String> getLastLogLines({int limit = 200}) {
+  static List<String> getLastLogLines({int limit = 500}) {
     final events = _buffer.snapshot();
     final logMessages = events
         .where((e) => e.type == 'log')
