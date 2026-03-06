@@ -81,6 +81,7 @@ class _MyAppState extends State<MyApp> {
             CaldaBugFloatingButton(
               repaintKey: _repaintKey,
               enabled: CaldaBug.config.env == 'staging',
+              recorder: createCaldaScreenRecordRecorder(),
             ),
           ],
         ),

@@ -35,7 +35,9 @@ class Uploader {
       final a = attachments[i];
       final ext = a.type == 'video' ? 'webm' : 'png';
       final name = a.filename ?? 'attachment_$i.$ext';
-      final ct = a.type == 'video' ? 'video/webm' : 'image/png';
+      final ct = a.type == 'video'
+          ? (name.endsWith('.mp4') ? 'video/mp4' : 'video/webm')
+          : 'image/png';
       req.files.add(bytesPart(name, a.data, contentType: ct));
     }
 

@@ -7,6 +7,7 @@ export 'src/screenshot/boundary.dart';
 export 'src/collectors/dio_interceptor.dart';
 export 'src/collectors/breadcrumb_capture.dart';
 export 'src/recording/viewport_recorder.dart';
+export 'src/recording/screen_record_recorder.dart';
 
 import 'dart:async';
 import 'dart:convert';

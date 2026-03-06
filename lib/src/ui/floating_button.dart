@@ -128,12 +128,19 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
                       title: const Text('Take screenshot and report'),
                       onTap: _onScreenshotChosen,
                     ),
-                    if (widget.recorder != null)
-                      ListTile(
-                        leading: const Icon(Icons.videocam),
-                        title: const Text('Start recording (max 30s)'),
-                        onTap: _onStartRecording,
+                    ListTile(
+                      leading: Icon(
+                        Icons.videocam,
+                        color: widget.recorder != null ? null : Colors.grey,
                       ),
+                      title: Text(
+                        'Start recording (max 30s)',
+                        style: TextStyle(
+                          color: widget.recorder != null ? null : Colors.grey,
+                        ),
+                      ),
+                      onTap: widget.recorder != null ? _onStartRecording : null,
+                    ),
                   ],
                   ),
                 ),
@@ -179,7 +186,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
               ReportAttachment(
                 type: 'video',
                 data: videoBytes,
-                filename: 'recording.webm',
+                filename: recorder.suggestedFilename,
               ),
             ]
           : <ReportAttachment>[];
@@ -210,7 +217,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
             ReportAttachment(
               type: 'video',
               data: videoBytes,
-              filename: 'recording.webm',
+              filename: widget.recorder!.suggestedFilename,
             ),
           ]
         : <ReportAttachment>[];
