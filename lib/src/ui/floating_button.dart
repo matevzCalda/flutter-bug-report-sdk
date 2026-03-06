@@ -6,6 +6,7 @@ import '../../calda_bug_sdk.dart';
 import '../models.dart';
 import '../screenshot/capture.dart';
 import '../recording/viewport_recorder.dart';
+import '../recording/screen_record_recorder.dart';
 import 'report_sheet.dart';
 
 class CaldaBugFloatingButton extends StatefulWidget {
@@ -31,6 +32,9 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   Timer? _recordingTimer;
   static const _maxRecordingMs = 30000;
   OverlayEntry? _menuOverlay;
+
+  CaldaViewportRecorder get _recorder =>
+      widget.recorder ?? createCaldaScreenRecordRecorder();
 
   @override
   void dispose() {
@@ -129,17 +133,9 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
                       onTap: _onScreenshotChosen,
                     ),
                     ListTile(
-                      leading: Icon(
-                        Icons.videocam,
-                        color: widget.recorder != null ? null : Colors.grey,
-                      ),
-                      title: Text(
-                        'Start recording (max 30s)',
-                        style: TextStyle(
-                          color: widget.recorder != null ? null : Colors.grey,
-                        ),
-                      ),
-                      onTap: widget.recorder != null ? _onStartRecording : null,
+                      leading: const Icon(Icons.videocam),
+                      title: const Text('Start recording (max 30s)'),
+                      onTap: _onStartRecording,
                     ),
                   ],
                   ),
@@ -171,8 +167,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   }
 
   void _onStartRecording() async {
-    final recorder = widget.recorder;
-    if (recorder == null) return;
+    final recorder = _recorder;
     _closeMenu();
     setState(() => _state = _FloatingState.recording);
     _recordingTimer = Timer(const Duration(milliseconds: _maxRecordingMs),
@@ -207,17 +202,18 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   }
 
   void _onStopRecording() async {
-    if (_state != _FloatingState.recording || widget.recorder == null) return;
+    if (_state != _FloatingState.recording) return;
+    final recorder = _recorder;
     _recordingTimer?.cancel();
     _recordingTimer = null;
-    final videoBytes = await widget.recorder!.stop();
+    final videoBytes = await recorder.stop();
     if (!mounted) return;
     final attachments = videoBytes != null && videoBytes.isNotEmpty
         ? [
             ReportAttachment(
               type: 'video',
               data: videoBytes,
-              filename: widget.recorder!.suggestedFilename,
+              filename: recorder.suggestedFilename,
             ),
           ]
         : <ReportAttachment>[];
