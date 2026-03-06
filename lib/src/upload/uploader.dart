@@ -13,6 +13,7 @@ class Uploader {
   Future<UploadResult> uploadReport({
     required List<int> payloadGzipJson,
     Uint8List? screenshotPng,
+    List<ReportAttachment> attachments = const [],
   }) async {
     final req = http.MultipartRequest('POST', endpoint);
     req.headers['Authorization'] = 'Bearer $apiKey';
@@ -24,10 +25,18 @@ class Uploader {
       ),
     );
 
-    if (screenshotPng != null) {
+    if (screenshotPng != null && screenshotPng.isNotEmpty) {
       req.files.add(
         bytesPart('screenshot.png', screenshotPng, contentType: 'image/png'),
       );
+    }
+
+    for (var i = 0; i < attachments.length; i++) {
+      final a = attachments[i];
+      final ext = a.type == 'video' ? 'webm' : 'png';
+      final name = a.filename ?? 'attachment_$i.$ext';
+      final ct = a.type == 'video' ? 'video/webm' : 'image/png';
+      req.files.add(bytesPart(name, a.data, contentType: ct));
     }
 
     final streamed = await req.send().timeout(timeout);
