@@ -5,12 +5,14 @@ Future<bool?> showCaldaReportSheet(
   BuildContext context, {
   required Uint8List? screenshotPng,
   required List<String> consoleLines,
+  Map<String, String>? deviceInfo,
 }) async {
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     builder: (ctx) {
       final bottom = MediaQuery.of(ctx).viewInsets.bottom;
+      final deviceInfoEntries = deviceInfo?.entries.toList() ?? [];
       return Padding(
         padding: EdgeInsets.only(
           left: 16,
@@ -58,6 +60,33 @@ Future<bool?> showCaldaReportSheet(
                 ),
               ),
             ),
+            if (deviceInfoEntries.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: deviceInfoEntries
+                      .map(
+                        (e) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: SelectableText(
+                            '${e.key}: ${e.value}',
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [

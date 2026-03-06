@@ -10,6 +10,8 @@ dependencies:
   dio: ^5.4.0
   http: ^1.2.0
   meta: ^1.11.0
+  device_info_plus: ^11.1.0
+  package_info_plus: ^8.0.0
 
 flutter:
   assets:
