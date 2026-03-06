@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import '../../calda_bug_sdk.dart';
 import '../models.dart';
 import '../screenshot/capture.dart';
@@ -23,17 +24,24 @@ class CaldaBugFloatingButton extends StatefulWidget {
   State<CaldaBugFloatingButton> createState() => _CaldaBugFloatingButtonState();
 }
 
-enum _FloatingState { idle, busy, recording }
+enum _FloatingState { idle, menuOpen, busy, recording }
 
 class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   _FloatingState _state = _FloatingState.idle;
   Timer? _recordingTimer;
   static const _maxRecordingMs = 30000;
+  OverlayEntry? _menuOverlay;
 
   @override
   void dispose() {
+    _removeMenuOverlay();
     _recordingTimer?.cancel();
     super.dispose();
+  }
+
+  void _removeMenuOverlay() {
+    _menuOverlay?.remove();
+    _menuOverlay = null;
   }
 
   Future<void> _openReportSheet({
@@ -81,85 +89,112 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
     }
   }
 
-  void _onMainButtonTap() async {
+  void _openMenu() {
     if (_state != _FloatingState.idle) return;
-    final recorder = widget.recorder;
-    final showRecording = recorder != null;
-
-    if (showRecording) {
-      final choice = await showModalBottomSheet<String>(
-        context: context,
-        builder: (ctx) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.camera_alt),
-                  title: const Text('Take screenshot and report'),
-                  onTap: () => Navigator.of(ctx).pop('screenshot'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.videocam),
-                  title: const Text('Start recording (max 30s)'),
-                  onTap: () => Navigator.of(ctx).pop('recording'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancel'),
-                ),
-              ],
+    final overlay = Overlay.of(context);
+    final box = context.findRenderObject() as RenderBox?;
+    final buttonRect = box != null ? box.localToGlobal(Offset.zero) & box.size : Rect.zero;
+    _menuOverlay = OverlayEntry(
+      builder: (overlayCtx) {
+        final size = MediaQuery.sizeOf(overlayCtx);
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _closeMenu,
+                behavior: HitTestBehavior.opaque,
+                child: Container(color: Colors.transparent),
+              ),
             ),
-          ),
-        ),
-      );
-      if (choice == null || !mounted) return;
-      if (choice == 'screenshot') {
-        setState(() => _state = _FloatingState.busy);
-        final png = await capturePng(widget.repaintKey);
-        if (!mounted) return;
-        await _openReportSheet(screenshotPng: png);
-        return;
-      }
-      if (choice == 'recording') {
-        setState(() => _state = _FloatingState.recording);
-        _recordingTimer = Timer(const Duration(milliseconds: _maxRecordingMs),
-            () async {
-          _recordingTimer = null;
-          if (!mounted || _state != _FloatingState.recording) return;
-          final videoBytes = await recorder.stop();
-          if (!mounted) return;
-          final attachments = videoBytes != null && videoBytes.isNotEmpty
-              ? [
-                  ReportAttachment(
-                    type: 'video',
-                    data: videoBytes,
-                    filename: 'recording.webm',
+            Positioned(
+              right: size.width - buttonRect.right,
+              bottom: size.height - buttonRect.top + 8,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 220),
+                  decoration: BoxDecoration(
+                    color: Theme.of(overlayCtx).cardColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                ]
-              : <ReportAttachment>[];
-          await _openReportSheet(attachments: attachments);
-        });
-        try {
-          await recorder.start();
-        } catch (_) {
-          if (mounted) setState(() => _state = _FloatingState.idle);
-          _recordingTimer?.cancel();
-          _recordingTimer = null;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Recording failed to start.')),
-          );
-        }
-        return;
-      }
-    }
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                    ListTile(
+                      leading: const Icon(Icons.camera_alt),
+                      title: const Text('Take screenshot and report'),
+                      onTap: _onScreenshotChosen,
+                    ),
+                    if (widget.recorder != null)
+                      ListTile(
+                        leading: const Icon(Icons.videocam),
+                        title: const Text('Start recording (max 30s)'),
+                        onTap: _onStartRecording,
+                      ),
+                  ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    overlay.insert(_menuOverlay!);
+    setState(() => _state = _FloatingState.menuOpen);
+  }
 
+  void _closeMenu() {
+    if (_state == _FloatingState.menuOpen) {
+      _removeMenuOverlay();
+      setState(() => _state = _FloatingState.idle);
+    }
+  }
+
+  void _onScreenshotChosen() async {
+    _closeMenu();
     setState(() => _state = _FloatingState.busy);
     final png = await capturePng(widget.repaintKey);
     if (!mounted) return;
     await _openReportSheet(screenshotPng: png);
+  }
+
+  void _onStartRecording() async {
+    final recorder = widget.recorder;
+    if (recorder == null) return;
+    _closeMenu();
+    setState(() => _state = _FloatingState.recording);
+    _recordingTimer = Timer(const Duration(milliseconds: _maxRecordingMs),
+        () async {
+      _recordingTimer = null;
+      if (!mounted || _state != _FloatingState.recording) return;
+      final videoBytes = await recorder.stop();
+      if (!mounted) return;
+      final attachments = videoBytes != null && videoBytes.isNotEmpty
+          ? [
+              ReportAttachment(
+                type: 'video',
+                data: videoBytes,
+                filename: 'recording.webm',
+              ),
+            ]
+          : <ReportAttachment>[];
+      await _openReportSheet(attachments: attachments);
+    });
+    try {
+      await recorder.start();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = _FloatingState.idle);
+        _recordingTimer?.cancel();
+        _recordingTimer = null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recording failed to start.')),
+        );
+      }
+    }
   }
 
   void _onStopRecording() async {
@@ -192,7 +227,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isRecording ? _onStopRecording : _onMainButtonTap,
+          onTap: isRecording ? _onStopRecording : _openMenu,
           customBorder: const CircleBorder(),
           child: Container(
             width: 56,
