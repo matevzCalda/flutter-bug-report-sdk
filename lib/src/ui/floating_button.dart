@@ -32,9 +32,13 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   Timer? _recordingTimer;
   static const _maxRecordingMs = 30000;
   OverlayEntry? _menuOverlay;
+  CaldaViewportRecorder? _cachedDefaultRecorder;
 
-  CaldaViewportRecorder get _recorder =>
-      widget.recorder ?? createCaldaScreenRecordRecorder();
+  CaldaViewportRecorder get _recorder {
+    if (widget.recorder != null) return widget.recorder!;
+    _cachedDefaultRecorder ??= createCaldaScreenRecordRecorder();
+    return _cachedDefaultRecorder!;
+  }
 
   @override
   void dispose() {
