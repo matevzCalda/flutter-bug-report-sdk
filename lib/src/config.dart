@@ -25,6 +25,9 @@ class CaldaBugConfig {
 
   final RedactionConfig redaction;
 
+  final bool enableNetworkCapture;
+  final bool enableBreadcrumbCapture;
+
   const CaldaBugConfig({
     required this.endpoint,
     required this.apiKey,
@@ -39,6 +42,8 @@ class CaldaBugConfig {
     this.enableFloatingButton = true,
     this.enableDebugPrintCapture = true,
     this.enableFlutterErrorCapture = true,
+    this.enableNetworkCapture = true,
+    this.enableBreadcrumbCapture = true,
     this.redaction = const RedactionConfig(),
   });
 }

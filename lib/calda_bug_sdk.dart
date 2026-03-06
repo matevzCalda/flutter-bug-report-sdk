@@ -5,6 +5,8 @@ export 'src/models.dart';
 export 'src/ui/floating_button.dart';
 export 'src/screenshot/boundary.dart';
 export 'src/collectors/dio_interceptor.dart';
+export 'src/collectors/breadcrumb_capture.dart';
+export 'src/recording/viewport_recorder.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -19,7 +21,12 @@ import 'src/time.dart';
 import 'src/redaction.dart';
 import 'src/collectors/flutter_errors.dart';
 import 'src/collectors/debug_print.dart';
+import 'package:dio/dio.dart';
+
+import 'src/collectors/breadcrumb_capture.dart' as breadcrumb;
+import 'src/collectors/dio_interceptor.dart';
 import 'src/collectors/navigation_observer.dart';
+import 'src/reproduction_summary.dart';
 import 'src/upload/uploader.dart';
 
 class CaldaBug {
@@ -30,6 +37,7 @@ class CaldaBug {
   static late final Uploader _uploader;
   static late final Stopwatch _clock;
   static StateSnapshotProvider? _snapshotProvider;
+  static String? _lastRoute;
 
   static CaldaBugConfig get config {
     final c = _config;
@@ -68,6 +76,12 @@ class CaldaBug {
         clock: _clock,
       );
     }
+    breadcrumb.configureBreadcrumbCapture(
+      add: addEvent,
+      enabled: config.enableBreadcrumbCapture,
+      nowMs: () => _clock.elapsedMilliseconds,
+      lastRoute: () => _lastRoute,
+    );
   }
 
   static void setStateSnapshotProvider(StateSnapshotProvider provider) {
@@ -89,9 +103,12 @@ class CaldaBug {
     return logMessages.sublist(start);
   }
 
+  static String? get lastRoute => _lastRoute;
+
   static CaldaBugNavigatorObserver navigatorObserver() {
     return CaldaBugNavigatorObserver(
       onRoute: (from, to) {
+        _lastRoute = to;
         addEvent(
           BugEvent.nav(t: nowMs(_clock), from: from, to: to, attrs: const {}),
         );
@@ -99,10 +116,25 @@ class CaldaBug {
     );
   }
 
-  /// Build a bundle and upload. Provide screenshot bytes optionally.
+  static Interceptor? dioInterceptor({
+    required String Function(String url) redactUrl,
+  }) {
+    if (!config.enableNetworkCapture) return null;
+    return CaldaBugDioInterceptor(
+      add: addEvent,
+      clock: _clock,
+      redactUrl: redactUrl,
+    );
+  }
+
+  static String getReproductionSummary() {
+    return getReproductionSummaryFromEvents(_buffer.snapshot());
+  }
+
   static Future<UploadResult> report({
     required String userMessage,
     Uint8List? screenshotPng,
+    List<ReportAttachment> attachments = const [],
     Map<String, Object?>? extra,
   }) async {
     final c = config;
@@ -124,9 +156,10 @@ class CaldaBug {
       env: c.env,
       release: c.release,
       app: c.app,
-      device: await DeviceInfo.collect(), // placeholder; see models.dart
+      device: await DeviceInfo.collect(),
       session: c.session,
       userMessage: userMessage,
+      reproductionSummary: getReproductionSummaryFromEvents(events),
       stateSnapshot: redactMap(stateSnapshot, c.redaction),
       events: events,
       extra: extra == null ? const {} : redactMap(extra, c.redaction),
@@ -136,6 +169,7 @@ class CaldaBug {
     return _uploader.uploadReport(
       payloadGzipJson: gzJson,
       screenshotPng: screenshotPng,
+      attachments: attachments,
     );
   }
 

@@ -46,23 +46,19 @@ class _MyAppState extends State<MyApp> {
     );
 
     // Instrument Dio
-    dio.interceptors.add(
-      CaldaBugDioInterceptor(
-        add: CaldaBug.addEvent,
-        clock: (CaldaBug as dynamic)
-            ._clock, // In real code: expose a getter instead
-        redactUrl: (u) => u.split('?').first,
-      ),
-    );
+    final interceptor =
+        CaldaBug.dioInterceptor(redactUrl: (u) => u.split('?').first);
+    if (interceptor != null) dio.interceptors.add(interceptor);
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorObservers: [CaldaBug.navigatorObserver()],
-      home: Stack(
-        children: [
-          CaldaBugBoundary(
+      home: CaldaBugBreadcrumbScope(
+        child: Stack(
+          children: [
+            CaldaBugBoundary(
             repaintKey: _repaintKey,
             child: Scaffold(
               appBar: AppBar(title: const Text('SDK Example')),
@@ -82,11 +78,12 @@ class _MyAppState extends State<MyApp> {
               ),
             ),
           ),
-          CaldaBugFloatingButton(
-            repaintKey: _repaintKey,
-            enabled: CaldaBug.config.env == 'staging',
-          ),
-        ],
+            CaldaBugFloatingButton(
+              repaintKey: _repaintKey,
+              enabled: CaldaBug.config.env == 'staging',
+            ),
+          ],
+        ),
       ),
     );
   }

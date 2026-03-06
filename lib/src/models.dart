@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -201,6 +202,20 @@ class BugEvent {
     'attrs': attrs,
   });
 
+  factory BugEvent.breadcrumb({
+    required int t,
+    required String action,
+    required String target,
+    required String route,
+    required Map<String, Object?> attrs,
+  }) =>
+      BugEvent._(t, 'breadcrumb', {
+        'action': action,
+        'target': target,
+        'route': route,
+        'attrs': attrs,
+      });
+
   Map<String, Object?> toJson() => {'t': t, 'type': type, ...data};
 
   BugEvent redacted(redaction) {
@@ -219,6 +234,7 @@ class BugReportPayload {
   final DeviceInfo device;
   final SessionInfo session;
   final String userMessage;
+  final String reproductionSummary;
   final Map<String, Object?> stateSnapshot;
   final List<BugEvent> events;
   final Map<String, Object?> extra;
@@ -233,26 +249,40 @@ class BugReportPayload {
     required this.device,
     required this.session,
     required this.userMessage,
+    required this.reproductionSummary,
     required this.stateSnapshot,
     required this.events,
     required this.extra,
   });
 
   Map<String, Object?> toJson() => {
-    'schemaVersion': schemaVersion,
-    'sdk': sdk.toJson(),
-    'timestamp': timestamp.toIso8601String(),
-    'env': env,
-    'release': release,
-    'app': app.toJson(),
-    'device': device.toJson(),
-    'session': session.toJson(),
-    'userMessage': userMessage,
-    'stateSnapshot': stateSnapshot,
-    'events': events.map((e) => e.toJson()).toList(),
-    'extra': extra,
-    'attachments': {'screenshot': true},
-  };
+        'schemaVersion': schemaVersion,
+        'sdk': sdk.toJson(),
+        'timestamp': timestamp.toIso8601String(),
+        'env': env,
+        'release': release,
+        'app': app.toJson(),
+        'device': device.toJson(),
+        'session': session.toJson(),
+        'userMessage': userMessage,
+        'reproductionSummary': reproductionSummary,
+        'stateSnapshot': stateSnapshot,
+        'events': events.map((e) => e.toJson()).toList(),
+        'extra': extra,
+        'attachments': {'screenshot': true},
+      };
+}
+
+class ReportAttachment {
+  final String type;
+  final Uint8List data;
+  final String? filename;
+
+  const ReportAttachment({
+    required this.type,
+    required this.data,
+    this.filename,
+  });
 }
 
 class UploadResult {
