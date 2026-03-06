@@ -109,11 +109,12 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
             Positioned(
               right: size.width - buttonRect.right,
               bottom: size.height - buttonRect.top + 8,
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  constraints: const BoxConstraints(minWidth: 220),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
                   decoration: BoxDecoration(
                     color: Theme.of(overlayCtx).cardColor,
                     borderRadius: BorderRadius.circular(8),
@@ -135,6 +136,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
                       ),
                   ],
                   ),
+                ),
                 ),
               ),
             ),
