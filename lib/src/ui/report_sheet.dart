@@ -19,7 +19,7 @@ const _borderColor = Color(0xFFE4E4E7);
 const _foregroundColor = Color(0xFF18181B);
 const _sidebarForeground = Color(0xFF3F3F46);
 const _primaryForeground = Color(0xFFFAFAFA);
-const _dropdownBg = Color(0xFFF9FAFB);
+const _hintColor = Color(0xFFA1A1AA);
 
 Widget _buildMediaPreview(
   BuildContext context, {
@@ -157,16 +157,23 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   String _selectedEnv = _envStaging;
+  int _step = 0;
+
+  bool get _hasTitle => _titleController.text.trim().isNotEmpty;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController();
     _descriptionController = TextEditingController();
+    _titleController.addListener(_onTitleChanged);
   }
+
+  void _onTitleChanged() => setState(() {});
 
   @override
   void dispose() {
+    _titleController.removeListener(_onTitleChanged);
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -213,205 +220,11 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
           return Column(
             children: [
               Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 71,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: _borderColor,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'New report',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: _sidebarForeground,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => _submit(false),
-                            child: const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: Icon(Icons.close, size: 20, color: _sidebarForeground),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _dropdownBg,
-                          border: Border.all(color: _borderColor),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedEnv,
-                            isExpanded: false,
-                            icon: Icon(
-                              Icons.arrow_drop_down,
-                              size: 16,
-                              color: _sidebarForeground,
-                            ),
-                            borderRadius: BorderRadius.circular(6),
-                            dropdownColor: Colors.white,
-                            items: [_envStaging, _envProduction]
-                                .map((e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.flight_takeoff, size: 12, color: _sidebarForeground),
-                                          const SizedBox(width: 4),
-                                          Text(e, style: const TextStyle(fontSize: 12, color: _sidebarForeground)),
-                                        ],
-                                      ),
-                                    ))
-                                .toList(),
-                            onChanged: (v) {
-                              if (v != null) setState(() => _selectedEnv = v);
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Title',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: _foregroundColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _titleController,
-                        decoration: InputDecoration(
-                          hintText: 'Enter the title',
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: const BorderSide(color: _borderColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: const BorderSide(color: _borderColor),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        style: const TextStyle(fontSize: 14, color: _foregroundColor),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Description',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: _foregroundColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _descriptionController,
-                        maxLines: 8,
-                        decoration: InputDecoration(
-                          hintText: _descriptionHint,
-                          alignLabelWithHint: true,
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: const BorderSide(color: _borderColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            borderSide: const BorderSide(color: _borderColor),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        style: const TextStyle(fontSize: 14, color: _foregroundColor),
-                      ),
-                      if (hasMedia) ...[
-                        const SizedBox(height: 16),
-                        _buildMediaPreview(
-                          context,
-                          screenshotPng: widget.screenshotPng,
-                          attachments: widget.attachments,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                child: _step == 0
+                    ? _buildStep1(scrollController, hasMedia)
+                    : _buildStep2(scrollController, hasMedia),
               ),
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: _borderColor, width: 1)),
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _submit(false),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _foregroundColor,
-                            side: const BorderSide(color: _borderColor),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 16,
-                              horizontal: 20,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(9999),
-                            ),
-                          ),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _submit(true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _foregroundColor,
-                            foregroundColor: _primaryForeground,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 16,
-                              horizontal: 16,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(9999),
-                            ),
-                          ),
-                          child: const Text('Create'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _step == 0 ? _buildStep1Footer() : _buildStep2Footer(),
             ],
           );
         },
@@ -419,4 +232,332 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     );
   }
 
+  Widget _buildHeader({VoidCallback? onClose}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: Container(
+            width: 71,
+            height: 4,
+            decoration: BoxDecoration(
+              color: _borderColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            GestureDetector(
+              onTap: onClose ?? () => _submit(false),
+              child: const SizedBox(
+                width: 20,
+                height: 20,
+                child: Icon(Icons.close, size: 20, color: _sidebarForeground),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildEnvChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border.all(color: _borderColor),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.flight_takeoff, size: 12, color: _sidebarForeground),
+          const SizedBox(width: 4),
+          Text(
+            _selectedEnv,
+            style: const TextStyle(fontSize: 12, color: _sidebarForeground),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep1(ScrollController scrollController, bool hasMedia) {
+    return SingleChildScrollView(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              border: Border.all(color: _borderColor),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedEnv,
+                isExpanded: false,
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  size: 16,
+                  color: _sidebarForeground,
+                ),
+                borderRadius: BorderRadius.circular(6),
+                dropdownColor: Colors.white,
+                items: [_envStaging, _envProduction]
+                    .map((e) => DropdownMenuItem(
+                          value: e,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.flight_takeoff, size: 12, color: _sidebarForeground),
+                              const SizedBox(width: 4),
+                              Text(e, style: const TextStyle(fontSize: 12, color: _sidebarForeground)),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _selectedEnv = v);
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Title',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: _foregroundColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _titleController,
+            decoration: InputDecoration(
+              hintText: 'Enter the title',
+              hintStyle: const TextStyle(color: _hintColor),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: _borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: _borderColor),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+            ),
+            style: const TextStyle(fontSize: 14, color: _foregroundColor),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Description',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: _foregroundColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _descriptionController,
+            maxLines: 8,
+            decoration: InputDecoration(
+              hintText: _descriptionHint,
+              hintStyle: const TextStyle(color: _hintColor),
+              alignLabelWithHint: true,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: _borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: _borderColor),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+            ),
+            style: const TextStyle(fontSize: 14, color: _foregroundColor),
+          ),
+          if (hasMedia) ...[
+            const SizedBox(height: 16),
+            _buildMediaPreview(
+              context,
+              screenshotPng: widget.screenshotPng,
+              attachments: widget.attachments,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep2(ScrollController scrollController, bool hasMedia) {
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+    return SingleChildScrollView(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(),
+          _buildEnvChip(),
+          const SizedBox(height: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title.isEmpty ? '—' : title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: _sidebarForeground,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 10),
+              SelectableText(
+                description.isEmpty ? '—' : description,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: _foregroundColor,
+                  height: 20 / 14,
+                ),
+              ),
+            ],
+          ),
+          if (hasMedia) ...[
+            const SizedBox(height: 16),
+            _buildMediaPreview(
+              context,
+              screenshotPng: widget.screenshotPng,
+              attachments: widget.attachments,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep1Footer() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: _borderColor, width: 1)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _submit(false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _foregroundColor,
+                  side: const BorderSide(color: _borderColor),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 20,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _hasTitle ? () => setState(() => _step = 1) : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _foregroundColor,
+                  foregroundColor: _primaryForeground,
+                  disabledBackgroundColor: _borderColor,
+                  disabledForegroundColor: Colors.white70,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                ),
+                child: const Text('Next'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep2Footer() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: _borderColor, width: 1)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => setState(() => _step = 0),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _foregroundColor,
+                  side: const BorderSide(color: _borderColor),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 20,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                ),
+                child: const Text('Back'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _submit(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _foregroundColor,
+                  foregroundColor: _primaryForeground,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                ),
+                child: const Text('Create'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
