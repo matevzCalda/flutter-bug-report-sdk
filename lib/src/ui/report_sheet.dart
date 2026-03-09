@@ -19,58 +19,92 @@ const _borderColor = Color(0xFFE4E4E7);
 const _foregroundColor = Color(0xFF18181B);
 const _sidebarForeground = Color(0xFF3F3F46);
 const _primaryForeground = Color(0xFFFAFAFA);
-const _dropdownSelectedBg = Color(0xFFEFF6FF);
-const _dropdownSelectedBorder = Color(0xFFDBEAFE);
+const _dropdownBg = Color(0xFFF9FAFB);
 
 Widget _buildMediaPreview(
   BuildContext context, {
   Uint8List? screenshotPng,
   List<ReportAttachment> attachments = const [],
 }) {
+  const aspectRatio = 3 / 4;
+  const maxHeight = 200.0;
+
   if (screenshotPng != null && screenshotPng.isNotEmpty) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.memory(
-        screenshotPng,
-        height: 136,
-        width: double.infinity,
-        fit: BoxFit.cover,
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight, maxWidth: maxHeight * aspectRatio),
+        child: AspectRatio(
+          aspectRatio: aspectRatio,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: _borderColor),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Image.memory(
+              screenshotPng,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
     );
   }
   final videoAttachments = attachments.where((a) => a.type == 'video').toList();
   final imageAttachments = attachments.where((a) => a.type == 'image').toList();
   if (videoAttachments.isNotEmpty) {
-    return Container(
-      height: 136,
-      decoration: BoxDecoration(
-        border: Border.all(color: _borderColor),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.videocam, size: 40, color: _sidebarForeground),
-          const SizedBox(width: 12),
-          Text(
-            '${videoAttachments.length} video(s)',
-            style: const TextStyle(fontSize: 14, color: _foregroundColor),
+    return Center(
+      child: SizedBox(
+        width: maxHeight * aspectRatio,
+        height: maxHeight,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: _borderColor),
+            borderRadius: BorderRadius.circular(8),
           ),
-        ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.videocam, size: 40, color: _sidebarForeground),
+              const SizedBox(width: 12),
+              Text(
+                '${videoAttachments.length} video(s)',
+                style: const TextStyle(fontSize: 14, color: _foregroundColor),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
   if (imageAttachments.isNotEmpty) {
     final first = imageAttachments.first;
-    return SizedBox(
-      height: 136,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.memory(first.data, fit: BoxFit.cover),
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight, maxWidth: maxHeight * aspectRatio),
+        child: AspectRatio(
+          aspectRatio: aspectRatio,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: _borderColor),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Image.memory(first.data, fit: BoxFit.contain),
+          ),
+        ),
       ),
     );
   }
   return const SizedBox.shrink();
 }
+
+const _descriptionHint = 'Write a description including:\n'
+    '1. Describe what happened.\n'
+    '2. Explanation of what you expected to happen.\n'
+    '3. List the steps to reproduce the issue.\n'
+    '4. Attach screenshots or screen recordings if possible.\n'
+    '5. Include the device and app version';
 
 Future<CaldaReportSheetResult?> showCaldaReportSheet(
   BuildContext context, {
@@ -220,8 +254,8 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _dropdownSelectedBg,
-                          border: Border.all(color: _dropdownSelectedBorder),
+                          color: _dropdownBg,
+                          border: Border.all(color: _borderColor),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: DropdownButtonHideUnderline(
@@ -267,6 +301,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
                       TextField(
                         controller: _titleController,
                         decoration: InputDecoration(
+                          hintText: 'Enter the title',
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
@@ -296,8 +331,10 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
                       const SizedBox(height: 8),
                       TextField(
                         controller: _descriptionController,
-                        maxLines: 4,
+                        maxLines: 8,
                         decoration: InputDecoration(
+                          hintText: _descriptionHint,
+                          alignLabelWithHint: true,
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
