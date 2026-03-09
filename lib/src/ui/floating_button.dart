@@ -63,7 +63,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
         Theme.of(context).brightness == Brightness.dark ? 'dark' : 'light';
     deviceInfoMap['Locale'] = Localizations.localeOf(context).toString();
     if (!mounted) return;
-    final send = await showCaldaReportSheet(
+    final result = await showCaldaReportSheet(
       context,
       screenshotPng: screenshotPng,
       consoleLines: consoleLines,
@@ -71,15 +71,16 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       reproductionSummary: CaldaBug.getReproductionSummary(),
       attachments: attachments,
     );
-    if (send != true) {
+    if (result == null || !result.send) {
       if (mounted) setState(() => _state = _FloatingState.idle);
       return;
     }
     try {
       await CaldaBug.report(
-        userMessage: '',
+        userMessage: result.userMessage,
         screenshotPng: screenshotPng,
         attachments: attachments,
+        env: result.env,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
