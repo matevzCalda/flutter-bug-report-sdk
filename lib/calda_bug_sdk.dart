@@ -137,10 +137,10 @@ class CaldaBug {
     Uint8List? screenshotPng,
     List<ReportAttachment> attachments = const [],
     Map<String, Object?>? extra,
+    String? env,
   }) async {
     final c = config;
 
-    // Snapshot ring buffer
     final events =
         _buffer.snapshot().map((e) => e.redacted(c.redaction)).toList();
 
@@ -154,7 +154,7 @@ class CaldaBug {
         platform: 'flutter',
       ),
       timestamp: DateTime.now().toUtc(),
-      env: c.env,
+      env: env ?? c.env,
       release: c.release,
       app: c.app,
       device: await DeviceInfo.collect(),
