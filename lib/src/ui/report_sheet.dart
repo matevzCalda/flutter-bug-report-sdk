@@ -25,7 +25,6 @@ const _hintColor = Color(0xFFA1A1AA);
 const _chipBg = Color(0xFFF9FAFB);
 const _chipBorder = Color(0xFFF3F4F6);
 const _separatorColor = Color(0xFFF3F4F6);
-const _toolbarActiveBg = Color(0xFFF4F4F5);
 const _toolbarIconColor = Color(0xFF71717A);
 
 const _descriptionHint = 'Write a description including:\n\n'
@@ -88,7 +87,8 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   String _selectedEnv = 'STAGING';
   String _selectedPlatform = 'Apple';
   bool _sending = false;
-  bool _previewMode = false;
+  final FocusNode _descriptionFocusNode = FocusNode();
+  bool _descriptionFocused = false;
 
   bool get _canCreate => _titleController.text.trim().isNotEmpty && !_sending;
 
@@ -99,6 +99,9 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     _descriptionController = TextEditingController();
     _titleController.addListener(_onChanged);
     _descriptionController.addListener(_onChanged);
+    _descriptionFocusNode.addListener(() {
+      setState(() => _descriptionFocused = _descriptionFocusNode.hasFocus);
+    });
   }
 
   void _onChanged() => setState(() {});
@@ -109,6 +112,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     _descriptionController.removeListener(_onChanged);
     _titleController.dispose();
     _descriptionController.dispose();
+    _descriptionFocusNode.dispose();
     super.dispose();
   }
 
@@ -321,18 +325,14 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
                               tooltip: 'Strikethrough',
                               onTap: _toggleStrikethrough,
                             ),
-                            const Spacer(),
-                            // Write / Preview toggle
-                            _buildModeToggle(),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        // Description: editor or markdown preview
-                        if (_previewMode)
-                          _buildMarkdownPreview()
-                        else
+                        // Description: tap to edit, renders markdown when not focused
+                        if (_descriptionFocused)
                           TextField(
                             controller: _descriptionController,
+                            focusNode: _descriptionFocusNode,
                             maxLines: null,
                             minLines: 8,
                             decoration: const InputDecoration(
@@ -348,6 +348,13 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
                               color: _foregroundColor,
                               height: 1.5,
                             ),
+                          )
+                        else
+                          GestureDetector(
+                            onTap: () {
+                              _descriptionFocusNode.requestFocus();
+                            },
+                            child: _buildMarkdownPreview(),
                           ),
                         const SizedBox(height: 12),
                         // Media block
@@ -390,51 +397,6 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     );
   }
 
-  Widget _buildModeToggle() {
-    return Container(
-      height: 28,
-      decoration: BoxDecoration(
-        border: Border.all(color: _chipBorder),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _modeTab('Write', isActive: !_previewMode, onTap: () {
-            setState(() => _previewMode = false);
-          }),
-          _modeTab('Preview', isActive: _previewMode, onTap: () {
-            _dismissKeyboard();
-            setState(() => _previewMode = true);
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _modeTab(String label,
-      {required bool isActive, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isActive ? _toolbarActiveBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
-            color: isActive ? _foregroundColor : _hintColor,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildMarkdownPreview() {
     final text = _descriptionController.text;
     if (text.trim().isEmpty) {
@@ -443,7 +405,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
         alignment: Alignment.topLeft,
         padding: const EdgeInsets.only(top: 4),
         child: const Text(
-          'Nothing to preview',
+          _descriptionHint,
           style: TextStyle(color: _hintColor, fontSize: 14),
         ),
       );
@@ -633,8 +595,10 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   }
 
   Widget _buildFooter() {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      padding: EdgeInsets.fromLTRB(
+          20, 12, 20, keyboardHeight > 0 ? 12 : 20),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: _borderColor, width: 1)),
