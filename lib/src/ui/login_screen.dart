@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../auth/supabase.dart';
 
 const _borderColor = Color(0xFFE4E4E7);
@@ -253,6 +254,26 @@ class _LoginSheetContentState extends State<_LoginSheetContent> {
                       ),
                     ),
                     child: Text(_loading ? 'Signing in...' : 'Log in'),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Manage account link
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      launchUrl(
+                        Uri.parse('https://google.com'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                    child: const Text(
+                      'Manage account',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _secondaryText,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),

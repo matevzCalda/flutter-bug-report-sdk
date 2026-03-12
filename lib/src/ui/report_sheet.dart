@@ -124,7 +124,6 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     FocusScope.of(context).unfocus();
   }
 
-  // Wraps selected text (or inserts at cursor) with markdown markers
   void _wrapSelection(String prefix, String suffix) {
     final text = _descriptionController.text;
     final sel = _descriptionController.selection;
@@ -134,7 +133,6 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     final end = sel.end;
     final selected = text.substring(start, end);
 
-    // Check if already wrapped – toggle off
     final before = text.substring(0, start);
     final after = text.substring(end);
     if (before.endsWith(prefix) && after.startsWith(suffix)) {
@@ -197,183 +195,202 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     final hasMedia = (widget.screenshotPng != null &&
             widget.screenshotPng!.isNotEmpty) ||
         widget.attachments.isNotEmpty;
 
-    return GestureDetector(
-      onTap: _dismissKeyboard,
-      behavior: HitTestBehavior.translucent,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-          border: Border.fromBorderSide(BorderSide(color: _borderColor)),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x14000000),
-              blurRadius: 17.9,
-            ),
-          ],
-        ),
-        child: DraggableScrollableSheet(
-          initialChildSize: 0.9,
-          minChildSize: 0.5,
-          maxChildSize: 1,
-          expand: false,
-          builder: (_, scrollController) {
-            return Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Drag handle
-                        Center(
-                          child: Container(
-                            width: 71,
-                            height: 4,
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: _borderColor,
-                              borderRadius: BorderRadius.circular(2),
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardHeight),
+      child: GestureDetector(
+        onTap: _dismissKeyboard,
+        behavior: HitTestBehavior.translucent,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            border: Border.fromBorderSide(BorderSide(color: _borderColor)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 17.9,
+              ),
+            ],
+          ),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.9,
+            minChildSize: 0.5,
+            maxChildSize: 1,
+            expand: false,
+            builder: (_, scrollController) {
+              return Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Drag handle
+                          Center(
+                            child: Container(
+                              width: 71,
+                              height: 4,
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: _borderColor,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
                           ),
-                        ),
-                        // Close button
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: GestureDetector(
-                            onTap: _close,
-                            child: const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: Icon(Icons.close,
-                                  size: 20, color: _sidebarForeground),
+                          // Close button
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: GestureDetector(
+                              onTap: _close,
+                              child: const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: Icon(Icons.close,
+                                    size: 20, color: _sidebarForeground),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Title "Report a bug"
-                        const Text(
-                          'Report a bug',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            color: _foregroundColor,
+                          const SizedBox(height: 12),
+                          // Title "Report a bug"
+                          const Text(
+                            'Report a bug',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              color: _foregroundColor,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Platform & Environment dropdowns row
-                        Row(
-                          children: [
-                            _buildDropdownChip(
-                              value: _selectedPlatform,
-                              items: _platformOptions,
-                              icon: _platformIcon(_selectedPlatform),
-                              onChanged: (v) =>
-                                  setState(() => _selectedPlatform = v),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildDropdownChip(
-                              value: _selectedEnv,
-                              items: _envOptions,
-                              icon: _envIcon(_selectedEnv),
-                              onChanged: (v) =>
-                                  setState(() => _selectedEnv = v),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        // Title input (borderless)
-                        TextField(
-                          controller: _titleController,
-                          decoration: const InputDecoration(
-                            hintText: 'Enter the title',
-                            hintStyle:
-                                TextStyle(color: _hintColor, fontSize: 16),
-                            border: InputBorder.none,
-                            contentPadding:
-                                EdgeInsets.symmetric(vertical: 8),
+                          const SizedBox(height: 12),
+                          // Platform & Environment dropdowns row
+                          Row(
+                            children: [
+                              _buildDropdownChip(
+                                value: _selectedPlatform,
+                                items: _platformOptions,
+                                icon: _platformIcon(_selectedPlatform),
+                                onChanged: (v) =>
+                                    setState(() => _selectedPlatform = v),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildDropdownChip(
+                                value: _selectedEnv,
+                                items: _envOptions,
+                                icon: _envIcon(_selectedEnv),
+                                onChanged: (v) =>
+                                    setState(() => _selectedEnv = v),
+                              ),
+                            ],
                           ),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: _foregroundColor,
-                          ),
-                        ),
-                        // Separator
-                        Container(height: 1, color: _separatorColor),
-                        const SizedBox(height: 8),
-                        // Formatting toolbar
-                        Row(
-                          children: [
-                            _toolbarButton(
-                              icon: Icons.format_bold,
-                              tooltip: 'Bold',
-                              onTap: _toggleBold,
-                            ),
-                            _toolbarButton(
-                              icon: Icons.format_italic,
-                              tooltip: 'Italic',
-                              onTap: _toggleItalic,
-                            ),
-                            _toolbarButton(
-                              icon: Icons.format_strikethrough,
-                              tooltip: 'Strikethrough',
-                              onTap: _toggleStrikethrough,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        // Description: tap to edit, renders markdown when not focused
-                        if (_descriptionFocused)
+                          const SizedBox(height: 12),
+                          // Title input (borderless)
                           TextField(
-                            controller: _descriptionController,
-                            focusNode: _descriptionFocusNode,
-                            maxLines: null,
-                            minLines: 8,
+                            controller: _titleController,
                             decoration: const InputDecoration(
-                              hintText: _descriptionHint,
+                              hintText: 'Enter the title',
                               hintStyle:
-                                  TextStyle(color: _hintColor, fontSize: 14),
-                              hintMaxLines: 10,
+                                  TextStyle(color: _hintColor, fontSize: 16),
                               border: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
+                              contentPadding:
+                                  EdgeInsets.symmetric(vertical: 8),
                             ),
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 16,
                               color: _foregroundColor,
-                              height: 1.5,
                             ),
-                          )
-                        else
-                          GestureDetector(
-                            onTap: () {
-                              _descriptionFocusNode.requestFocus();
-                            },
-                            child: _buildMarkdownPreview(),
                           ),
-                        const SizedBox(height: 12),
-                        // Media block
-                        if (hasMedia)
-                          _buildMediaBlock()
-                        else
-                          _buildEmptyMediaBlock(),
-                        const SizedBox(height: 16),
-                      ],
+                          // Separator
+                          Container(height: 1, color: _separatorColor),
+                          const SizedBox(height: 8),
+                          // Formatting toolbar
+                          Row(
+                            children: [
+                              _toolbarButton(
+                                icon: Icons.format_bold,
+                                tooltip: 'Bold',
+                                onTap: _toggleBold,
+                              ),
+                              _toolbarButton(
+                                icon: Icons.format_italic,
+                                tooltip: 'Italic',
+                                onTap: _toggleItalic,
+                              ),
+                              _toolbarButton(
+                                icon: Icons.format_strikethrough,
+                                tooltip: 'Strikethrough',
+                                onTap: _toggleStrikethrough,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          // Description area: always has the TextField in tree,
+                          // markdown preview overlays it when not focused
+                          _buildDescriptionArea(),
+                          const SizedBox(height: 12),
+                          // Media block
+                          if (hasMedia)
+                            _buildMediaBlock()
+                          else
+                            _buildEmptyMediaBlock(),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                // Footer
-                _buildFooter(),
-              ],
-            );
-          },
+                  // Footer — always visible, pinned at bottom
+                  _buildFooter(),
+                ],
+              );
+            },
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDescriptionArea() {
+    // Always keep TextField mounted so focusNode works.
+    // When not focused and has text, show markdown overlay on top.
+    return Stack(
+      children: [
+        // The real TextField — always in tree
+        Opacity(
+          opacity: _descriptionFocused ? 1.0 : 0.0,
+          child: TextField(
+            controller: _descriptionController,
+            focusNode: _descriptionFocusNode,
+            maxLines: null,
+            minLines: 8,
+            decoration: const InputDecoration(
+              hintText: _descriptionHint,
+              hintStyle: TextStyle(color: _hintColor, fontSize: 14),
+              hintMaxLines: 10,
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+            style: const TextStyle(
+              fontSize: 14,
+              color: _foregroundColor,
+              height: 1.5,
+            ),
+          ),
+        ),
+        // Markdown preview overlay — shown when not focused
+        if (!_descriptionFocused)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _descriptionFocusNode.requestFocus(),
+              child: _buildMarkdownPreview(),
+            ),
+          ),
+      ],
     );
   }
 
@@ -595,57 +612,52 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   }
 
   Widget _buildFooter() {
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     return Container(
-      padding: EdgeInsets.fromLTRB(
-          20, 12, 20, keyboardHeight > 0 ? 12 : 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: _borderColor, width: 1)),
       ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            OutlinedButton(
-              onPressed: _close,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _foregroundColor,
-                side: const BorderSide(color: _borderColor),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 20,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9999),
-                ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          OutlinedButton(
+            onPressed: _close,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _foregroundColor,
+              side: const BorderSide(color: _borderColor),
+              padding: const EdgeInsets.symmetric(
+                vertical: 12,
+                horizontal: 20,
               ),
-              child: const Text('Cancel'),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: _canCreate ? _handleCreate : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _foregroundColor,
-                foregroundColor: _primaryForeground,
-                disabledBackgroundColor:
-                    _foregroundColor.withValues(alpha: 0.5),
-                disabledForegroundColor:
-                    _primaryForeground.withValues(alpha: 0.5),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 16,
-                ),
-                minimumSize: const Size(101, 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9999),
-                ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9999),
               ),
-              child: Text(_sending ? 'Sending...' : 'Create'),
             ),
-          ],
-        ),
+            child: const Text('Cancel'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _canCreate ? _handleCreate : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _foregroundColor,
+              foregroundColor: _primaryForeground,
+              disabledBackgroundColor:
+                  _foregroundColor.withValues(alpha: 0.5),
+              disabledForegroundColor:
+                  _primaryForeground.withValues(alpha: 0.5),
+              padding: const EdgeInsets.symmetric(
+                vertical: 12,
+                horizontal: 16,
+              ),
+              minimumSize: const Size(101, 40),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(9999),
+              ),
+            ),
+            child: Text(_sending ? 'Sending...' : 'Create'),
+          ),
+        ],
       ),
     );
   }

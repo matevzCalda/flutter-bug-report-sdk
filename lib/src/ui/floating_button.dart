@@ -437,36 +437,54 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
           onTap: isRecording ? _onStopRecording : _handleMainClick,
           customBorder: const CircleBorder(),
           child: Container(
-            width: 56,
-            height: 56,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: isRecording ? Colors.red : Colors.white,
+              color: isRecording
+                  ? const Color(0xFFCC0000)
+                  : const Color(0xFFEE0000),
               shape: BoxShape.circle,
               border: Border.all(
-                color: isRecording ? Colors.red : Colors.black,
-                width: 2,
+                color: isRecording
+                    ? const Color(0xFFCC0000)
+                    : const Color(0x33FFFFFF),
+                width: isRecording ? 2 : 1,
               ),
-              image: isRecording
-                  ? null
-                  : const DecorationImage(
-                      image: AssetImage(
-                        'assets/calda_bug_logo.png',
-                        package: 'calda_bug_sdk',
-                      ),
-                      fit: BoxFit.contain,
-                    ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x4D000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: isRecording
-                ? const Center(
-                    child:
-                        Icon(Icons.stop, color: Colors.white, size: 32),
+                ? Center(
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
                   )
                 : isBusy
                     ? const Center(
-                        child:
-                            CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
-                    : null,
+                    : Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Image.asset(
+                          'assets/calda_bug_logo.png',
+                          package: 'calda_bug_sdk',
+                          width: 24,
+                          height: 24,
+                        ),
+                      ),
           ),
         ),
       ),

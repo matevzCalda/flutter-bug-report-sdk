@@ -15,6 +15,7 @@ dependencies:
   screen_record_plus: ^1.1.0
   supabase_flutter: ^2.8.0
   flutter_markdown: ^0.7.6
+  url_launcher: ^6.2.0
 
 flutter:
   assets:
