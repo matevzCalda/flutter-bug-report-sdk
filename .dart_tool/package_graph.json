@@ -10,6 +10,7 @@
         "device_info_plus",
         "dio",
         "flutter",
+        "flutter_markdown",
         "http",
         "meta",
         "package_info_plus",
@@ -36,6 +37,16 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "flutter_markdown",
+      "version": "0.7.7+1",
+      "dependencies": [
+        "flutter",
+        "markdown",
+        "meta",
+        "path"
       ]
     },
     {
@@ -214,6 +225,14 @@
         "stream_channel",
         "string_scanner",
         "term_glyph"
+      ]
+    },
+    {
+      "name": "markdown",
+      "version": "7.3.0",
+      "dependencies": [
+        "args",
+        "meta"
       ]
     },
     {
@@ -458,6 +477,11 @@
         "source_span",
         "string_scanner"
       ]
+    },
+    {
+      "name": "args",
+      "version": "2.7.0",
+      "dependencies": []
     },
     {
       "name": "shared_preferences_windows",
