@@ -442,7 +442,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
             decoration: BoxDecoration(
               color: isRecording
                   ? const Color(0xFFCC0000)
-                  : const Color(0xFFEE0000),
+                  : const Color(0xFF18181B),
               shape: BoxShape.circle,
               border: Border.all(
                 color: isRecording

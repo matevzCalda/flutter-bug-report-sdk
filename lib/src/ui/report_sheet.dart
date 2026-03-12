@@ -87,8 +87,6 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   String _selectedEnv = 'STAGING';
   String _selectedPlatform = 'Apple';
   bool _sending = false;
-  final FocusNode _descriptionFocusNode = FocusNode();
-  bool _descriptionFocused = false;
 
   bool get _canCreate => _titleController.text.trim().isNotEmpty && !_sending;
 
@@ -99,9 +97,6 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     _descriptionController = TextEditingController();
     _titleController.addListener(_onChanged);
     _descriptionController.addListener(_onChanged);
-    _descriptionFocusNode.addListener(() {
-      setState(() => _descriptionFocused = _descriptionFocusNode.hasFocus);
-    });
   }
 
   void _onChanged() => setState(() {});
@@ -112,7 +107,6 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     _descriptionController.removeListener(_onChanged);
     _titleController.dispose();
     _descriptionController.dispose();
-    _descriptionFocusNode.dispose();
     super.dispose();
   }
 
@@ -329,9 +323,28 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          // Description area: always has the TextField in tree,
-                          // markdown preview overlays it when not focused
-                          _buildDescriptionArea(),
+                          // Description input
+                          TextField(
+                            controller: _descriptionController,
+                            maxLines: null,
+                            minLines: 6,
+                            decoration: const InputDecoration(
+                              hintText: _descriptionHint,
+                              hintStyle:
+                                  TextStyle(color: _hintColor, fontSize: 14),
+                              hintMaxLines: 10,
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: _foregroundColor,
+                              height: 1.5,
+                            ),
+                          ),
+                          // Live markdown preview
+                          if (_descriptionController.text.trim().isNotEmpty)
+                            _buildMarkdownPreview(),
                           const SizedBox(height: 12),
                           // Media block
                           if (hasMedia)
@@ -351,46 +364,6 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildDescriptionArea() {
-    // Always keep TextField mounted so focusNode works.
-    // When not focused and has text, show markdown overlay on top.
-    return Stack(
-      children: [
-        // The real TextField — always in tree
-        Opacity(
-          opacity: _descriptionFocused ? 1.0 : 0.0,
-          child: TextField(
-            controller: _descriptionController,
-            focusNode: _descriptionFocusNode,
-            maxLines: null,
-            minLines: 8,
-            decoration: const InputDecoration(
-              hintText: _descriptionHint,
-              hintStyle: TextStyle(color: _hintColor, fontSize: 14),
-              hintMaxLines: 10,
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-            ),
-            style: const TextStyle(
-              fontSize: 14,
-              color: _foregroundColor,
-              height: 1.5,
-            ),
-          ),
-        ),
-        // Markdown preview overlay — shown when not focused
-        if (!_descriptionFocused)
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _descriptionFocusNode.requestFocus(),
-              child: _buildMarkdownPreview(),
-            ),
-          ),
-      ],
     );
   }
 
@@ -415,46 +388,51 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   }
 
   Widget _buildMarkdownPreview() {
-    final text = _descriptionController.text;
-    if (text.trim().isEmpty) {
-      return Container(
-        constraints: const BoxConstraints(minHeight: 160),
-        alignment: Alignment.topLeft,
-        padding: const EdgeInsets.only(top: 4),
-        child: const Text(
-          _descriptionHint,
-          style: TextStyle(color: _hintColor, fontSize: 14),
-        ),
-      );
-    }
     return Container(
-      constraints: const BoxConstraints(minHeight: 160),
-      alignment: Alignment.topLeft,
-      child: MarkdownBody(
-        data: text,
-        styleSheet: MarkdownStyleSheet(
-          p: const TextStyle(
-            fontSize: 14,
-            color: _foregroundColor,
-            height: 1.5,
+      width: double.infinity,
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: _separatorColor)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Preview',
+            style: TextStyle(
+              fontSize: 11,
+              color: _hintColor,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          strong: const TextStyle(
-            fontSize: 14,
-            color: _foregroundColor,
-            fontWeight: FontWeight.bold,
+          const SizedBox(height: 4),
+          MarkdownBody(
+            data: _descriptionController.text,
+            styleSheet: MarkdownStyleSheet(
+              p: const TextStyle(
+                fontSize: 14,
+                color: _foregroundColor,
+                height: 1.5,
+              ),
+              strong: const TextStyle(
+                fontSize: 14,
+                color: _foregroundColor,
+                fontWeight: FontWeight.bold,
+              ),
+              em: const TextStyle(
+                fontSize: 14,
+                color: _foregroundColor,
+                fontStyle: FontStyle.italic,
+              ),
+              del: const TextStyle(
+                fontSize: 14,
+                color: _foregroundColor,
+                decoration: TextDecoration.lineThrough,
+              ),
+            ),
+            shrinkWrap: true,
           ),
-          em: const TextStyle(
-            fontSize: 14,
-            color: _foregroundColor,
-            fontStyle: FontStyle.italic,
-          ),
-          del: const TextStyle(
-            fontSize: 14,
-            color: _foregroundColor,
-            decoration: TextDecoration.lineThrough,
-          ),
-        ),
-        shrinkWrap: true,
+        ],
       ),
     );
   }
