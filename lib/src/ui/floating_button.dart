@@ -7,7 +7,9 @@ import '../models.dart';
 import '../screenshot/capture.dart';
 import '../recording/viewport_recorder.dart';
 import '../recording/screen_record_recorder.dart';
+import '../auth/supabase.dart' as auth;
 import 'report_sheet.dart';
+import 'login_screen.dart';
 
 class CaldaBugFloatingButton extends StatefulWidget {
   final GlobalKey repaintKey;
@@ -27,12 +29,18 @@ class CaldaBugFloatingButton extends StatefulWidget {
 
 enum _FloatingState { idle, menuOpen, busy, recording }
 
+enum _MenuStep { main, settings }
+
 class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   _FloatingState _state = _FloatingState.idle;
+  _MenuStep _menuStep = _MenuStep.main;
   Timer? _recordingTimer;
   static const _maxRecordingMs = 30000;
   OverlayEntry? _menuOverlay;
+  OverlayEntry? _toastOverlay;
   CaldaViewportRecorder? _cachedDefaultRecorder;
+  bool _isAuthed = false;
+  StreamSubscription? _authSubscription;
 
   CaldaViewportRecorder get _recorder {
     if (widget.recorder != null) return widget.recorder!;
@@ -41,15 +49,97 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+    _authSubscription = auth.getSupabaseClient()
+        .auth
+        .onAuthStateChange
+        .listen((data) {
+      if (mounted) {
+        setState(() => _isAuthed = data.session != null);
+      }
+    });
+  }
+
+  void _checkAuth() {
+    final session = auth.getSession();
+    _isAuthed = session != null;
+  }
+
+  @override
   void dispose() {
     _removeMenuOverlay();
+    _removeToastOverlay();
     _recordingTimer?.cancel();
+    _authSubscription?.cancel();
     super.dispose();
   }
 
   void _removeMenuOverlay() {
     _menuOverlay?.remove();
     _menuOverlay = null;
+  }
+
+  void _removeToastOverlay() {
+    _toastOverlay?.remove();
+    _toastOverlay = null;
+  }
+
+  void _showSuccessToast() {
+    _removeToastOverlay();
+    final overlay = Overlay.of(context);
+    _toastOverlay = OverlayEntry(
+      builder: (ctx) {
+        return Positioned(
+          top: MediaQuery.of(ctx).padding.top + 16,
+          left: 24,
+          right: 24,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFE4E4E7)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 15,
+                    offset: Offset(0, 10),
+                  ),
+                  BoxShadow(
+                    color: Color(0x0D000000),
+                    blurRadius: 6,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check, size: 16, color: Colors.black),
+                  SizedBox(width: 4),
+                  Text(
+                    'New Ticket has been added',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    overlay.insert(_toastOverlay!);
+    Future.delayed(const Duration(seconds: 3), () {
+      _removeToastOverlay();
+    });
   }
 
   Future<void> _openReportSheet({
@@ -75,34 +165,38 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       if (mounted) setState(() => _state = _FloatingState.idle);
       return;
     }
-    try {
-      await CaldaBug.report(
-        userMessage: result.userMessage,
-        screenshotPng: screenshotPng,
-        attachments: attachments,
-        env: result.env,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bug report sent.')),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to send report.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _state = _FloatingState.idle);
+    // Edge function already called inside report sheet on success
+    if (mounted) {
+      _showSuccessToast();
+      setState(() => _state = _FloatingState.idle);
+    }
+  }
+
+  void _handleMainClick() {
+    if (_state != _FloatingState.idle) return;
+    if (!_isAuthed) {
+      _openLoginSheet();
+    } else {
+      _openMenu();
+    }
+  }
+
+  Future<void> _openLoginSheet() async {
+    final success = await showCaldaLoginSheet(context);
+    if (success == true && mounted) {
+      _checkAuth();
+      setState(() {});
+      _openMenu();
     }
   }
 
   void _openMenu() {
     if (_state != _FloatingState.idle) return;
+    _menuStep = _MenuStep.main;
     final overlay = Overlay.of(context);
     final box = context.findRenderObject() as RenderBox?;
-    final buttonRect = box != null ? box.localToGlobal(Offset.zero) & box.size : Rect.zero;
+    final buttonRect =
+        box != null ? box.localToGlobal(Offset.zero) & box.size : Rect.zero;
     _menuOverlay = OverlayEntry(
       builder: (overlayCtx) {
         final size = MediaQuery.sizeOf(overlayCtx);
@@ -119,32 +213,28 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
               right: size.width - buttonRect.right,
               bottom: size.height - buttonRect.top + 8,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
+                constraints:
+                    const BoxConstraints(minWidth: 220, maxWidth: 320),
                 child: Material(
                   elevation: 8,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   child: Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(overlayCtx).cardColor,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                    ListTile(
-                      leading: const Icon(Icons.camera_alt),
-                      title: const Text('Take screenshot and report'),
-                      onTap: _onScreenshotChosen,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFEEEEEE)),
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.videocam),
-                      title: const Text('Start recording (max 30s)'),
-                      onTap: _onStartRecording,
+                    padding: const EdgeInsets.all(12),
+                    child: StatefulBuilder(
+                      builder: (ctx, setMenuState) {
+                        if (_menuStep == _MenuStep.main) {
+                          return _buildMainMenu(setMenuState);
+                        } else {
+                          return _buildSettingsMenu(setMenuState);
+                        }
+                      },
                     ),
-                  ],
                   ),
-                ),
                 ),
               ),
             ),
@@ -156,9 +246,89 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
     setState(() => _state = _FloatingState.menuOpen);
   }
 
+  Widget _buildMainMenu(StateSetter setMenuState) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _menuItem(
+          label: 'Take a screenshot and report',
+          onTap: _onScreenshotChosen,
+        ),
+        _menuItem(
+          label: 'Start recording (max 30s)',
+          onTap: _onStartRecording,
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Divider(height: 1, color: Color(0xFFF3F4F6)),
+        ),
+        _menuItem(
+          label: 'Settings',
+          onTap: () {
+            _menuStep = _MenuStep.settings;
+            _menuOverlay?.markNeedsBuild();
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettingsMenu(StateSetter setMenuState) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _menuItem(
+          label: 'Manage user',
+          onTap: () {
+            // placeholder – same as web
+            _closeMenu();
+          },
+        ),
+        _menuItem(
+          label: 'Log out',
+          onTap: () async {
+            await auth.signOut();
+            _closeMenu();
+            if (mounted) {
+              _checkAuth();
+              setState(() {});
+            }
+          },
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Divider(height: 1, color: Color(0xFFF3F4F6)),
+        ),
+        _menuItem(
+          label: 'Go back',
+          onTap: () {
+            _menuStep = _MenuStep.main;
+            _menuOverlay?.markNeedsBuild();
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _menuItem({required String label, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 14, color: Colors.black87),
+        ),
+      ),
+    );
+  }
+
   void _closeMenu() {
     if (_state == _FloatingState.menuOpen) {
       _removeMenuOverlay();
+      _menuStep = _MenuStep.main;
       setState(() => _state = _FloatingState.idle);
     }
   }
@@ -175,8 +345,8 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
     final recorder = _recorder;
     _closeMenu();
     setState(() => _state = _FloatingState.recording);
-    _recordingTimer = Timer(const Duration(milliseconds: _maxRecordingMs),
-        () async {
+    _recordingTimer =
+        Timer(const Duration(milliseconds: _maxRecordingMs), () async {
       _recordingTimer = null;
       if (!mounted || _state != _FloatingState.recording) return;
       final videoBytes = await recorder.stop();
@@ -185,7 +355,8 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Recording could not be exported. Try again.')),
+                content:
+                    Text('Recording could not be exported. Try again.')),
           );
         }
       }
@@ -225,7 +396,8 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Recording could not be exported. Try again.')),
+              content:
+                  Text('Recording could not be exported. Try again.')),
         );
       }
     }
@@ -253,7 +425,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isRecording ? _onStopRecording : _openMenu,
+          onTap: isRecording ? _onStopRecording : _handleMainClick,
           customBorder: const CircleBorder(),
           child: Container(
             width: 56,
@@ -277,11 +449,13 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
             ),
             child: isRecording
                 ? const Center(
-                    child: Icon(Icons.stop, color: Colors.white, size: 32),
+                    child:
+                        Icon(Icons.stop, color: Colors.white, size: 32),
                   )
                 : isBusy
                     ? const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child:
+                            CircularProgressIndicator(strokeWidth: 2),
                       )
                     : null,
           ),

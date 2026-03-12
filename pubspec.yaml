@@ -13,10 +13,12 @@ dependencies:
   device_info_plus: ^11.1.0
   package_info_plus: ^8.0.0
   screen_record_plus: ^1.1.0
+  supabase_flutter: ^2.8.0
 
 flutter:
   assets:
     - assets/calda_bug_logo.png
+    - assets/login-page.png
 
 dev_dependencies:
   flutter_test:

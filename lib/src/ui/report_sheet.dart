@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import '../auth/supabase.dart';
 
 class CaldaReportSheetResult {
   final bool send;
@@ -20,91 +21,19 @@ const _foregroundColor = Color(0xFF18181B);
 const _sidebarForeground = Color(0xFF3F3F46);
 const _primaryForeground = Color(0xFFFAFAFA);
 const _hintColor = Color(0xFFA1A1AA);
+const _chipBg = Color(0xFFF9FAFB);
+const _chipBorder = Color(0xFFF3F4F6);
+const _separatorColor = Color(0xFFF3F4F6);
 
-Widget _buildMediaPreview(
-  BuildContext context, {
-  Uint8List? screenshotPng,
-  List<ReportAttachment> attachments = const [],
-}) {
-  const aspectRatio = 3 / 4;
-  const maxHeight = 200.0;
-
-  if (screenshotPng != null && screenshotPng.isNotEmpty) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight, maxWidth: maxHeight * aspectRatio),
-        child: AspectRatio(
-          aspectRatio: aspectRatio,
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: _borderColor),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Image.memory(
-              screenshotPng,
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-  final videoAttachments = attachments.where((a) => a.type == 'video').toList();
-  final imageAttachments = attachments.where((a) => a.type == 'image').toList();
-  if (videoAttachments.isNotEmpty) {
-    return Center(
-      child: SizedBox(
-        width: maxHeight * aspectRatio,
-        height: maxHeight,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: _borderColor),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.videocam, size: 40, color: _sidebarForeground),
-              const SizedBox(width: 12),
-              Text(
-                '${videoAttachments.length} video(s)',
-                style: const TextStyle(fontSize: 14, color: _foregroundColor),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  if (imageAttachments.isNotEmpty) {
-    final first = imageAttachments.first;
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight, maxWidth: maxHeight * aspectRatio),
-        child: AspectRatio(
-          aspectRatio: aspectRatio,
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: _borderColor),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Image.memory(first.data, fit: BoxFit.contain),
-          ),
-        ),
-      ),
-    );
-  }
-  return const SizedBox.shrink();
-}
-
-const _descriptionHint = 'Write a description including:\n'
-    '1. Describe what happened.\n'
+const _descriptionHint = 'Write a description including:\n\n'
+    '1. A description of what happened.\n'
     '2. Explanation of what you expected to happen.\n'
     '3. List the steps to reproduce the issue.\n'
     '4. Attach screenshots or screen recordings if possible.\n'
-    '5. Include the device and app version';
+    '5. Include the device and app version.';
+
+const _platformOptions = ['Web', 'Apple', 'Android', 'Figma'];
+const _envOptions = ['STAGING', 'PRODUCTION'];
 
 Future<CaldaReportSheetResult?> showCaldaReportSheet(
   BuildContext context, {
@@ -151,43 +80,64 @@ class _CaldaReportSheetContent extends StatefulWidget {
 }
 
 class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
-  static const _envStaging = 'STAGING';
-  static const _envProduction = 'PRODUCTION';
-
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
-  String _selectedEnv = _envStaging;
-  int _step = 0;
+  String _selectedEnv = 'STAGING';
+  String _selectedPlatform = 'Apple';
+  bool _sending = false;
 
-  bool get _hasTitle => _titleController.text.trim().isNotEmpty;
+  bool get _canCreate => _titleController.text.trim().isNotEmpty && !_sending;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController();
     _descriptionController = TextEditingController();
-    _titleController.addListener(_onTitleChanged);
+    _titleController.addListener(_onChanged);
   }
 
-  void _onTitleChanged() => setState(() {});
+  void _onChanged() => setState(() {});
 
   @override
   void dispose() {
-    _titleController.removeListener(_onTitleChanged);
+    _titleController.removeListener(_onChanged);
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
 
-  void _submit(bool send) {
-    final userMessage = send
-        ? 'Title: ${_titleController.text.trim()}\n\n${_descriptionController.text.trim()}'
-        : '';
-    Navigator.of(context).pop(CaldaReportSheetResult(
-      send: send,
-      userMessage: userMessage,
-      env: _selectedEnv.toLowerCase(),
-    ));
+  void _close() {
+    Navigator.of(context).pop(null);
+  }
+
+  Future<void> _handleCreate() async {
+    setState(() => _sending = true);
+    try {
+      final supabase = getSupabaseClient();
+      final res = await supabase.functions.invoke(
+        'test-from-sdk',
+        body: {'name': 'Functions'},
+      );
+
+      if (res.status != 200) {
+        throw Exception('Edge function error: ${res.status}');
+      }
+
+      if (!mounted) return;
+      final userMessage =
+          'Title: ${_titleController.text.trim()}\n\n${_descriptionController.text.trim()}';
+      Navigator.of(context).pop(CaldaReportSheetResult(
+        send: true,
+        userMessage: userMessage,
+        env: _selectedEnv.toLowerCase(),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send report: $e')),
+      );
+    }
   }
 
   @override
@@ -207,7 +157,6 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
           BoxShadow(
             color: Color(0x14000000),
             blurRadius: 17.9,
-            offset: Offset(0, 0),
           ),
         ],
       ),
@@ -220,11 +169,119 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
           return Column(
             children: [
               Expanded(
-                child: _step == 0
-                    ? _buildStep1(scrollController, hasMedia)
-                    : _buildStep2(scrollController, hasMedia),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Drag handle
+                      Center(
+                        child: Container(
+                          width: 71,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: _borderColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      // Close button
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: GestureDetector(
+                          onTap: _close,
+                          child: const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: Icon(Icons.close,
+                                size: 20, color: _sidebarForeground),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Title "Report a bug"
+                      const Text(
+                        'Report a bug',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: _foregroundColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Platform & Environment dropdowns row
+                      Row(
+                        children: [
+                          _buildDropdownChip(
+                            value: _selectedPlatform,
+                            items: _platformOptions,
+                            icon: _platformIcon(_selectedPlatform),
+                            onChanged: (v) =>
+                                setState(() => _selectedPlatform = v),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildDropdownChip(
+                            value: _selectedEnv,
+                            items: _envOptions,
+                            icon: _envIcon(_selectedEnv),
+                            onChanged: (v) =>
+                                setState(() => _selectedEnv = v),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Title input (borderless, like web)
+                      TextField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          hintText: 'Enter the title',
+                          hintStyle: TextStyle(color: _hintColor, fontSize: 16),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: _foregroundColor,
+                        ),
+                      ),
+                      // Separator
+                      Container(
+                        height: 1,
+                        color: _separatorColor,
+                      ),
+                      const SizedBox(height: 12),
+                      // Description
+                      TextField(
+                        controller: _descriptionController,
+                        maxLines: null,
+                        minLines: 8,
+                        decoration: const InputDecoration(
+                          hintText: _descriptionHint,
+                          hintStyle: TextStyle(color: _hintColor, fontSize: 14),
+                          hintMaxLines: 10,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: _foregroundColor,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Media block
+                      if (hasMedia)
+                        _buildMediaBlock()
+                      else
+                        _buildEmptyMediaBlock(),
+                    ],
+                  ),
+                ),
               ),
-              _step == 0 ? _buildStep1Footer() : _buildStep2Footer(),
+              // Footer
+              _buildFooter(),
             ],
           );
         },
@@ -232,285 +289,158 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     );
   }
 
-  Widget _buildHeader({VoidCallback? onClose}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Center(
-          child: Container(
-            width: 71,
-            height: 4,
-            decoration: BoxDecoration(
-              color: _borderColor,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            GestureDetector(
-              onTap: onClose ?? () => _submit(false),
-              child: const SizedBox(
-                width: 20,
-                height: 20,
-                child: Icon(Icons.close, size: 20, color: _sidebarForeground),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-      ],
-    );
-  }
-
-  Widget _buildEnvChip() {
+  Widget _buildDropdownChip({
+    required String value,
+    required List<String> items,
+    required IconData icon,
+    required ValueChanged<String> onChanged,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        border: Border.all(color: _borderColor),
+        color: _chipBg,
+        border: Border.all(color: _chipBorder),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.flight_takeoff, size: 12, color: _sidebarForeground),
-          const SizedBox(width: 4),
-          Text(
-            _selectedEnv,
-            style: const TextStyle(fontSize: 12, color: _sidebarForeground),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStep1(ScrollController scrollController, bool hasMedia) {
-    return SingleChildScrollView(
-      controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHeader(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            decoration: BoxDecoration(
-              border: Border.all(color: _borderColor),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedEnv,
-                isExpanded: false,
-                icon: Icon(
-                  Icons.arrow_drop_down,
-                  size: 16,
-                  color: _sidebarForeground,
-                ),
-                borderRadius: BorderRadius.circular(6),
-                dropdownColor: Colors.white,
-                items: [_envStaging, _envProduction]
-                    .map((e) => DropdownMenuItem(
-                          value: e,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.flight_takeoff, size: 12, color: _sidebarForeground),
-                              const SizedBox(width: 4),
-                              Text(e, style: const TextStyle(fontSize: 12, color: _sidebarForeground)),
-                            ],
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isDense: true,
+          icon: const Icon(Icons.arrow_drop_down,
+              size: 16, color: _sidebarForeground),
+          borderRadius: BorderRadius.circular(6),
+          dropdownColor: Colors.white,
+          items: items
+              .map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          e == value ? icon : _iconForItem(e, items),
+                          size: 14,
+                          color: _sidebarForeground,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          e,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: _sidebarForeground,
                           ),
-                        ))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _selectedEnv = v);
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Title',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: _foregroundColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _titleController,
-            decoration: InputDecoration(
-              hintText: 'Enter the title',
-              hintStyle: const TextStyle(color: _hintColor),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: const BorderSide(color: _borderColor),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: const BorderSide(color: _borderColor),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-            ),
-            style: const TextStyle(fontSize: 14, color: _foregroundColor),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Description',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: _foregroundColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _descriptionController,
-            maxLines: 8,
-            decoration: InputDecoration(
-              hintText: _descriptionHint,
-              hintStyle: const TextStyle(color: _hintColor),
-              alignLabelWithHint: true,
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: const BorderSide(color: _borderColor),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: const BorderSide(color: _borderColor),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-            ),
-            style: const TextStyle(fontSize: 14, color: _foregroundColor),
-          ),
-          if (hasMedia) ...[
-            const SizedBox(height: 16),
-            _buildMediaPreview(
-              context,
-              screenshotPng: widget.screenshotPng,
-              attachments: widget.attachments,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStep2(ScrollController scrollController, bool hasMedia) {
-    final title = _titleController.text.trim();
-    final description = _descriptionController.text.trim();
-    return SingleChildScrollView(
-      controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHeader(),
-          _buildEnvChip(),
-          const SizedBox(height: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title.isEmpty ? '—' : title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: _sidebarForeground,
-                  height: 1.0,
-                ),
-              ),
-              const SizedBox(height: 10),
-              SelectableText(
-                description.isEmpty ? '—' : description,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: _foregroundColor,
-                  height: 20 / 14,
-                ),
-              ),
-            ],
-          ),
-          if (hasMedia) ...[
-            const SizedBox(height: 16),
-            _buildMediaPreview(
-              context,
-              screenshotPng: widget.screenshotPng,
-              attachments: widget.attachments,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStep1Footer() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: _borderColor, width: 1)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => _submit(false),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _foregroundColor,
-                  side: const BorderSide(color: _borderColor),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 20,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9999),
-                  ),
-                ),
-                child: const Text('Cancel'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _hasTitle ? () => setState(() => _step = 1) : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _foregroundColor,
-                  foregroundColor: _primaryForeground,
-                  disabledBackgroundColor: _borderColor,
-                  disabledForegroundColor: Colors.white70,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9999),
-                  ),
-                ),
-                child: const Text('Next'),
-              ),
-            ),
-          ],
+                        ),
+                      ],
+                    ),
+                  ))
+              .toList(),
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
         ),
       ),
     );
   }
 
-  Widget _buildStep2Footer() {
+  IconData _iconForItem(String item, List<String> list) {
+    if (list == _platformOptions) return _platformIcon(item);
+    return _envIcon(item);
+  }
+
+  static IconData _platformIcon(String platform) {
+    switch (platform) {
+      case 'Web':
+        return Icons.language;
+      case 'Apple':
+        return Icons.apple;
+      case 'Android':
+        return Icons.android;
+      case 'Figma':
+        return Icons.design_services;
+      default:
+        return Icons.device_unknown;
+    }
+  }
+
+  static IconData _envIcon(String env) {
+    switch (env) {
+      case 'STAGING':
+        return Icons.flight_takeoff;
+      case 'PRODUCTION':
+        return Icons.star;
+      default:
+        return Icons.settings;
+    }
+  }
+
+  Widget _buildMediaBlock() {
+    final allMedia = <Widget>[];
+
+    if (widget.screenshotPng != null && widget.screenshotPng!.isNotEmpty) {
+      allMedia.add(_buildMediaTile(
+        child: Image.memory(widget.screenshotPng!, fit: BoxFit.contain),
+      ));
+    }
+
+    for (final attachment in widget.attachments) {
+      if (attachment.type == 'video') {
+        allMedia.add(_buildMediaTile(
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.videocam, size: 32, color: _sidebarForeground),
+              SizedBox(height: 4),
+              Text('Video',
+                  style: TextStyle(fontSize: 12, color: _sidebarForeground)),
+            ],
+          ),
+        ));
+      } else if (attachment.type == 'image') {
+        allMedia.add(_buildMediaTile(
+          child: Image.memory(attachment.data, fit: BoxFit.contain),
+        ));
+      }
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: allMedia,
+    );
+  }
+
+  Widget _buildMediaTile({required Widget child}) {
+    return Container(
+      width: 140,
+      height: 140,
+      decoration: BoxDecoration(
+        border: Border.all(color: _borderColor),
+        borderRadius: BorderRadius.circular(8),
+        color: _chipBg,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
+
+  Widget _buildEmptyMediaBlock() {
+    return Container(
+      width: 140,
+      height: 140,
+      decoration: BoxDecoration(
+        border: Border.all(color: _borderColor),
+        borderRadius: BorderRadius.circular(8),
+        color: _chipBg,
+      ),
+      alignment: Alignment.center,
+      child: const Text(
+        'No image or video',
+        style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: const BoxDecoration(
@@ -519,41 +449,41 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
       child: SafeArea(
         top: false,
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => setState(() => _step = 0),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _foregroundColor,
-                  side: const BorderSide(color: _borderColor),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 20,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9999),
-                  ),
+            OutlinedButton(
+              onPressed: _close,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _foregroundColor,
+                side: const BorderSide(color: _borderColor),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 20,
                 ),
-                child: const Text('Back'),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(9999),
+                ),
               ),
+              child: const Text('Cancel'),
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => _submit(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _foregroundColor,
-                  foregroundColor: _primaryForeground,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9999),
-                  ),
+            ElevatedButton(
+              onPressed: _canCreate ? _handleCreate : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _foregroundColor,
+                foregroundColor: _primaryForeground,
+                disabledBackgroundColor: _foregroundColor.withValues(alpha: 0.5),
+                disabledForegroundColor: _primaryForeground.withValues(alpha: 0.5),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 16,
                 ),
-                child: const Text('Create'),
+                minimumSize: const Size(101, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(9999),
+                ),
               ),
+              child: Text(_sending ? 'Sending...' : 'Create'),
             ),
           ],
         ),
