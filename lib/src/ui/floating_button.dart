@@ -51,7 +51,16 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   @override
   void initState() {
     super.initState();
+    _initAuth();
+  }
+
+  Future<void> _initAuth() async {
+    if (!auth.isSupabaseInitialized) {
+      await auth.ensureSupabaseInitialized();
+    }
+    if (!mounted) return;
     _checkAuth();
+    setState(() {});
     _authSubscription = auth.getSupabaseClient()
         .auth
         .onAuthStateChange

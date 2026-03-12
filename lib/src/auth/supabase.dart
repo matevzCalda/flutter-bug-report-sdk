@@ -5,6 +5,8 @@ const _supabaseKey = 'sb_publishable_D9buhiSqNLtbG06M1-LlvA_iWnPi9ef';
 
 bool _initialized = false;
 
+bool get isSupabaseInitialized => _initialized;
+
 Future<void> ensureSupabaseInitialized() async {
   if (_initialized) return;
   await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseKey);
@@ -14,6 +16,7 @@ Future<void> ensureSupabaseInitialized() async {
 SupabaseClient getSupabaseClient() => Supabase.instance.client;
 
 Session? getSession() {
+  if (!_initialized) return null;
   return Supabase.instance.client.auth.currentSession;
 }
 
