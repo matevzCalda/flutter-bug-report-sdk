@@ -4,7 +4,10 @@ import 'package:dio/dio.dart';
 import 'package:calda_bug_sdk/calda_bug_sdk.dart';
 import 'package:calda_bug_sdk/src/screenshot/boundary.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ensureSupabaseInitialized();
+
   CaldaBug.init(
     CaldaBugConfig(
       endpoint: Uri.parse('https://your-backend.example.com/bug-reports'),
@@ -36,8 +39,6 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-    // Hook navigation observer (breadcrumbs)
-    // Provide snapshot provider
     CaldaBug.setStateSnapshotProvider(
       () => {
         'featureFlags': {'newCheckout': true},
@@ -45,7 +46,6 @@ class _MyAppState extends State<MyApp> {
       },
     );
 
-    // Instrument Dio
     final interceptor =
         CaldaBug.dioInterceptor(redactUrl: (u) => u.split('?').first);
     if (interceptor != null) dio.interceptors.add(interceptor);
