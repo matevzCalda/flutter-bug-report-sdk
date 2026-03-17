@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'dart:typed_data';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import '../models.dart';
-import 'multipart.dart';
 
 class Uploader {
   final Uri endpoint;
@@ -18,46 +16,67 @@ class Uploader {
     String? token,
   }) async {
     final authToken = token ?? apiKey;
-    final req = http.MultipartRequest('POST', endpoint);
-    req.headers['Authorization'] = 'Bearer $authToken';
-    req.files.add(
-      bytesPart(
-        'payload.json.gz',
-        payloadGzipJson,
-        contentType: 'application/gzip',
-      ),
-    );
 
+    final formData = FormData();
+
+    // 1. Gzipped JSON payload
+    formData.files.add(MapEntry(
+      'files',
+      MultipartFile.fromBytes(
+        payloadGzipJson,
+        filename: 'payload.json.gz',
+        contentType: DioMediaType('application', 'gzip'),
+      ),
+    ));
+
+    // 2. Screenshot
     if (screenshotPng != null && screenshotPng.isNotEmpty) {
-      req.files.add(
-        bytesPart('screenshot.png', screenshotPng, contentType: 'image/png'),
-      );
+      formData.files.add(MapEntry(
+        'files',
+        MultipartFile.fromBytes(
+          screenshotPng,
+          filename: 'screenshot.png',
+          contentType: DioMediaType('image', 'png'),
+        ),
+      ));
     }
 
+    // 3. Extra attachments (images / videos)
     for (var i = 0; i < attachments.length; i++) {
       final a = attachments[i];
       final ext = a.type == 'video' ? 'webm' : 'png';
       final name = a.filename ?? 'attachment_$i.$ext';
-      final ct = a.type == 'video'
-          ? (name.endsWith('.mp4') ? 'video/mp4' : 'video/webm')
-          : 'image/png';
-      req.files.add(bytesPart(name, a.data, contentType: ct));
+      final DioMediaType ct;
+      if (a.type == 'video') {
+        ct = name.endsWith('.mp4')
+            ? DioMediaType('video', 'mp4')
+            : DioMediaType('video', 'webm');
+      } else {
+        ct = DioMediaType('image', 'png');
+      }
+      formData.files.add(MapEntry(
+        'files',
+        MultipartFile.fromBytes(a.data, filename: name, contentType: ct),
+      ));
     }
 
-    final streamed = await req.send().timeout(timeout);
-    final body = await streamed.stream.bytesToString();
+    final dio = Dio(BaseOptions(
+      connectTimeout: timeout,
+      receiveTimeout: timeout,
+      sendTimeout: timeout,
+    ));
 
-    if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
-      throw Exception('Upload failed: ${streamed.statusCode} $body');
-    }
+    final response = await dio.postUri<Map<String, dynamic>>(
+      endpoint,
+      data: formData,
+      options: Options(
+        headers: {'Authorization': 'Bearer $authToken'},
+      ),
+    );
 
-    return _parseUploadResponse(body);
-  }
-
-  UploadResult _parseUploadResponse(String body) {
-    final json = jsonDecode(body) as Map<String, dynamic>;
-    final reportId = json['reportId'] as String? ?? '';
-    final viewerUrlStr = json['viewerUrl'] as String?;
+    final data = response.data ?? {};
+    final reportId = data['reportId'] as String? ?? '';
+    final viewerUrlStr = data['viewerUrl'] as String?;
     final viewerUrl =
         viewerUrlStr != null ? Uri.parse(viewerUrlStr) : Uri();
     return UploadResult(reportId: reportId, viewerUrl: viewerUrl);
