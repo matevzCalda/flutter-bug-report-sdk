@@ -13,13 +13,11 @@ import 'report_sheet.dart';
 import 'login_screen.dart';
 
 class CaldaBugFloatingButton extends StatefulWidget {
-  final GlobalKey repaintKey;
   final bool enabled;
   final CaldaViewportRecorder? recorder;
 
   const CaldaBugFloatingButton({
     super.key,
-    required this.repaintKey,
     this.enabled = true,
     this.recorder,
   });
@@ -353,7 +351,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
     // The RepaintBoundary is a sibling of the overlay in the widget tree,
     // so the overlay doesn't appear in the capture. This avoids all
     // timing issues with dirty render objects after setState.
-    final png = await capturePng(widget.repaintKey);
+    final png = await capturePng();
     _closeMenu();
     if (!mounted) return;
     await _openReportSheet(screenshotPng: png);

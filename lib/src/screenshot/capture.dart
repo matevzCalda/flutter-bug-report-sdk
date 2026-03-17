@@ -1,13 +1,12 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
-import 'package:flutter/widgets.dart';
+import 'boundary.dart';
 
-Future<Uint8List?> capturePng(
-  GlobalKey repaintKey, {
+Future<Uint8List?> capturePng({
   double pixelRatio = 2.0,
 }) async {
-  final context = repaintKey.currentContext;
+  final context = CaldaBugBoundary.boundaryKey.currentContext;
   if (context == null) return null;
   final boundary = context.findRenderObject() as RenderRepaintBoundary?;
   if (boundary == null) return null;

@@ -32,7 +32,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final GlobalKey _repaintKey = GlobalKey();
   final Dio dio = Dio();
 
   @override
@@ -59,7 +58,6 @@ class _MyAppState extends State<MyApp> {
         child: Stack(
           children: [
             CaldaBugBoundary(
-            repaintKey: _repaintKey,
             child: Scaffold(
               appBar: AppBar(title: const Text('SDK Example')),
               body: Center(
@@ -79,7 +77,6 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
             CaldaBugFloatingButton(
-              repaintKey: _repaintKey,
               enabled: CaldaBug.config.env == 'staging',
               recorder: createCaldaScreenRecordRecorder(),
             ),
