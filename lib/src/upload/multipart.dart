@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 http.MultipartFile bytesPart(
   String filename,
@@ -9,9 +10,6 @@ http.MultipartFile bytesPart(
     'files',
     bytes,
     filename: filename,
-    contentType: _parseMediaType(contentType),
+    contentType: MediaType.parse(contentType),
   );
 }
-
-// Minimal MediaType shim to avoid extra deps; you can add http_parser for real MediaType.
-dynamic _parseMediaType(String ct) => null;
