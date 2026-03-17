@@ -349,13 +349,12 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   }
 
   void _onScreenshotChosen() async {
-    _closeMenu();
-    setState(() => _state = _FloatingState.busy);
-    // Wait for the frame to paint after the menu overlay is removed,
-    // so the RepaintBoundary has a clean render to capture.
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return;
+    // Capture the screenshot BEFORE closing the menu overlay.
+    // The RepaintBoundary is a sibling of the overlay in the widget tree,
+    // so the overlay doesn't appear in the capture. This avoids all
+    // timing issues with dirty render objects after setState.
     final png = await capturePng(widget.repaintKey);
+    _closeMenu();
     if (!mounted) return;
     await _openReportSheet(screenshotPng: png);
   }

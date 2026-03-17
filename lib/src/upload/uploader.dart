@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../models.dart';
@@ -64,21 +65,40 @@ class Uploader {
       connectTimeout: timeout,
       receiveTimeout: timeout,
       sendTimeout: timeout,
+      // Accept all status codes so we can read the response body on errors.
+      validateStatus: (_) => true,
     ));
 
-    final response = await dio.postUri<Map<String, dynamic>>(
+    final response = await dio.postUri<String>(
       endpoint,
       data: formData,
       options: Options(
         headers: {'Authorization': 'Bearer $authToken'},
+        responseType: ResponseType.plain,
       ),
     );
 
-    final data = response.data ?? {};
-    final reportId = data['reportId'] as String? ?? '';
-    final viewerUrlStr = data['viewerUrl'] as String?;
-    final viewerUrl =
-        viewerUrlStr != null ? Uri.parse(viewerUrlStr) : Uri();
-    return UploadResult(reportId: reportId, viewerUrl: viewerUrl);
+    final statusCode = response.statusCode ?? 0;
+    final body = response.data ?? '';
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception('Upload failed ($statusCode): $body');
+    }
+
+    return _parseUploadResponse(body);
+  }
+
+  UploadResult _parseUploadResponse(String body) {
+    try {
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      final reportId = json['reportId'] as String? ?? '';
+      final viewerUrlStr = json['viewerUrl'] as String?;
+      return UploadResult(
+        reportId: reportId,
+        viewerUrl: viewerUrlStr != null ? Uri.parse(viewerUrlStr) : Uri(),
+      );
+    } catch (_) {
+      return UploadResult(reportId: '', viewerUrl: Uri());
+    }
   }
 }
