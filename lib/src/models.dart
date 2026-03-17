@@ -1,6 +1,8 @@
 import 'dart:io' show Platform;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -54,6 +56,12 @@ class DeviceInfo {
   final String packageId;
   final String appVersion;
   final String appBuildNumber;
+  final String colorScheme;
+  final double? screenWidth;
+  final double? screenHeight;
+  final String? timezone;
+  final int? timezoneOffset;
+  final String? language;
 
   const DeviceInfo({
     required this.platform,
@@ -65,6 +73,12 @@ class DeviceInfo {
     this.packageId = '',
     this.appVersion = '',
     this.appBuildNumber = '',
+    this.colorScheme = 'unknown',
+    this.screenWidth,
+    this.screenHeight,
+    this.timezone,
+    this.timezoneOffset,
+    this.language,
   });
 
   static Future<DeviceInfo> collect() async {
@@ -109,15 +123,58 @@ class DeviceInfo {
       appBuildNumber = info.buildNumber;
     } catch (_) {}
 
+    // Color scheme detection
+    String colorScheme = 'unknown';
+    try {
+      final brightness =
+          SchedulerBinding.instance.platformDispatcher.platformBrightness;
+      colorScheme = brightness == ui.Brightness.dark ? 'dark' : 'light';
+    } catch (_) {}
+
+    // Screen dimensions
+    double? screenWidth;
+    double? screenHeight;
+    try {
+      final display = ui.PlatformDispatcher.instance.views.first.display;
+      screenWidth = display.size.width / display.devicePixelRatio;
+      screenHeight = display.size.height / display.devicePixelRatio;
+    } catch (_) {}
+
+    // Timezone
+    String? timezone;
+    int? timezoneOffset;
+    try {
+      final now = DateTime.now();
+      timezone = now.timeZoneName;
+      timezoneOffset = now.timeZoneOffset.inMinutes;
+    } catch (_) {}
+
+    // Language / locale
+    String locale = 'unknown';
+    String? language;
+    try {
+      final platformLocale =
+          ui.PlatformDispatcher.instance.locale;
+      locale = platformLocale.toString();
+      language = platformLocale.languageCode;
+    } catch (_) {}
+
     return DeviceInfo(
       platform: p,
       os: os,
       osVersion: osVersion,
+      locale: locale,
       model: model,
       manufacturer: manufacturer,
       packageId: packageId,
       appVersion: appVersion,
       appBuildNumber: appBuildNumber,
+      colorScheme: colorScheme,
+      screenWidth: screenWidth,
+      screenHeight: screenHeight,
+      timezone: timezone,
+      timezoneOffset: timezoneOffset,
+      language: language,
     );
   }
 
@@ -131,6 +188,11 @@ class DeviceInfo {
       if (packageId.isNotEmpty) 'Package / Bundle ID': packageId,
       if (appVersion.isNotEmpty) 'App version': appVersion,
       if (appBuildNumber.isNotEmpty) 'Build': appBuildNumber,
+      'Color scheme': colorScheme,
+      if (screenWidth != null && screenHeight != null)
+        'Screen': '${screenWidth!.round()}x${screenHeight!.round()}',
+      if (timezone != null) 'Timezone': timezone!,
+      if (language != null) 'Language': language!,
     };
     return m;
   }
@@ -145,6 +207,12 @@ class DeviceInfo {
         'packageId': packageId,
         'appVersion': appVersion,
         'appBuildNumber': appBuildNumber,
+        'colorScheme': colorScheme,
+        if (screenWidth != null) 'screenWidth': screenWidth,
+        if (screenHeight != null) 'screenHeight': screenHeight,
+        if (timezone != null) 'timezone': timezone,
+        if (timezoneOffset != null) 'timezoneOffset': timezoneOffset,
+        if (language != null) 'language': language,
       };
 }
 
@@ -238,6 +306,8 @@ class BugReportPayload {
   final Map<String, Object?> stateSnapshot;
   final List<BugEvent> events;
   final Map<String, Object?> extra;
+  final bool hasScreenshot;
+  final int attachmentCount;
 
   BugReportPayload({
     required this.schemaVersion,
@@ -253,6 +323,8 @@ class BugReportPayload {
     required this.stateSnapshot,
     required this.events,
     required this.extra,
+    this.hasScreenshot = false,
+    this.attachmentCount = 0,
   });
 
   Map<String, Object?> toJson() => {
@@ -269,7 +341,10 @@ class BugReportPayload {
         'stateSnapshot': stateSnapshot,
         'events': events.map((e) => e.toJson()).toList(),
         'extra': extra,
-        'attachments': {'screenshot': true},
+        'attachments': {
+          'screenshot': hasScreenshot,
+          'count': (hasScreenshot ? 1 : 0) + attachmentCount,
+        },
       };
 }
 

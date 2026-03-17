@@ -38,7 +38,7 @@ class CaldaBugConfig {
     this.sdkVersion = '0.1.0',
     this.schemaVersion = '1.0.0',
     this.maxEvents = 800,
-    this.uploadTimeout = const Duration(seconds: 12),
+    this.uploadTimeout = const Duration(seconds: 60),
     this.enableFloatingButton = true,
     this.enableDebugPrintCapture = true,
     this.enableFlutterErrorCapture = true,

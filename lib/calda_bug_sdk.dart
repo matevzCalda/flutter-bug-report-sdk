@@ -140,6 +140,7 @@ class CaldaBug {
     List<ReportAttachment> attachments = const [],
     Map<String, Object?>? extra,
     String? env,
+    String? token,
   }) async {
     final c = config;
 
@@ -166,6 +167,8 @@ class CaldaBug {
       stateSnapshot: redactMap(stateSnapshot, c.redaction),
       events: events,
       extra: extra == null ? const {} : redactMap(extra, c.redaction),
+      hasScreenshot: screenshotPng != null && screenshotPng.isNotEmpty,
+      attachmentCount: attachments.length,
     );
 
     final gzJson = gzipJson(utf8.encode(jsonEncode(payload.toJson())));
@@ -173,6 +176,7 @@ class CaldaBug {
       payloadGzipJson: gzJson,
       screenshotPng: screenshotPng,
       attachments: attachments,
+      token: token,
     );
   }
 

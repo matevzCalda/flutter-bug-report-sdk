@@ -174,10 +174,32 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       if (mounted) setState(() => _state = _FloatingState.idle);
       return;
     }
-    // Edge function already called inside report sheet on success
-    if (mounted) {
-      _showSuccessToast();
-      setState(() => _state = _FloatingState.idle);
+
+    // Get auth token from session (like the web SDK)
+    final session = auth.getSession();
+    final token = session?.accessToken;
+
+    try {
+      await CaldaBug.report(
+        userMessage: result.userMessage,
+        screenshotPng: screenshotPng,
+        attachments: attachments,
+        env: result.env,
+        extra: {'platform': result.platform},
+        token: token,
+      );
+
+      if (mounted) {
+        _showSuccessToast();
+        setState(() => _state = _FloatingState.idle);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _state = _FloatingState.idle);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send report: $e')),
+        );
+      }
     }
   }
 

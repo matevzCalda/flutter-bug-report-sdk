@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models.dart';
@@ -14,9 +15,11 @@ class Uploader {
     required List<int> payloadGzipJson,
     Uint8List? screenshotPng,
     List<ReportAttachment> attachments = const [],
+    String? token,
   }) async {
+    final authToken = token ?? apiKey;
     final req = http.MultipartRequest('POST', endpoint);
-    req.headers['Authorization'] = 'Bearer $apiKey';
+    req.headers['Authorization'] = 'Bearer $authToken';
     req.files.add(
       bytesPart(
         'payload.json.gz',
@@ -48,14 +51,15 @@ class Uploader {
       throw Exception('Upload failed: ${streamed.statusCode} $body');
     }
 
-    // Expect JSON: { reportId, viewerUrl }
-    final parsed = parseUploadResponse(body);
-    return parsed;
+    return _parseUploadResponse(body);
   }
 
-  UploadResult parseUploadResponse(String body) {
-    // keep skeleton simple; implement jsonDecode
-    // return UploadResult(reportId: '...', viewerUrl: Uri.parse('...'));
-    throw UnimplementedError('Implement JSON parsing for upload response');
+  UploadResult _parseUploadResponse(String body) {
+    final json = jsonDecode(body) as Map<String, dynamic>;
+    final reportId = json['reportId'] as String? ?? '';
+    final viewerUrlStr = json['viewerUrl'] as String?;
+    final viewerUrl =
+        viewerUrlStr != null ? Uri.parse(viewerUrlStr) : Uri();
+    return UploadResult(reportId: reportId, viewerUrl: viewerUrl);
   }
 }

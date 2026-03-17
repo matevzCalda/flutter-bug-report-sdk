@@ -3,17 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../models.dart';
-import '../auth/supabase.dart';
 
 class CaldaReportSheetResult {
   final bool send;
   final String userMessage;
   final String env;
+  final String platform;
 
   const CaldaReportSheetResult({
     required this.send,
     required this.userMessage,
     required this.env,
+    required this.platform,
   });
 }
 
@@ -159,34 +160,16 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   void _toggleItalic() => _wrapSelection('*', '*');
   void _toggleStrikethrough() => _wrapSelection('~~', '~~');
 
-  Future<void> _handleCreate() async {
-    setState(() => _sending = true);
-    try {
-      final supabase = getSupabaseClient();
-      final res = await supabase.functions.invoke(
-        'test-from-sdk',
-        body: {'name': 'Functions'},
-      );
-
-      if (res.status != 200) {
-        throw Exception('Edge function error: ${res.status}');
-      }
-
-      if (!mounted) return;
-      final userMessage =
-          'Title: ${_titleController.text.trim()}\n\n${_descriptionController.text.trim()}';
-      Navigator.of(context).pop(CaldaReportSheetResult(
-        send: true,
-        userMessage: userMessage,
-        env: _selectedEnv.toLowerCase(),
-      ));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _sending = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send report: $e')),
-      );
-    }
+  void _handleCreate() {
+    final userMessage =
+        '${_titleController.text.trim()}\n\n${_descriptionController.text.trim()}'
+            .trim();
+    Navigator.of(context).pop(CaldaReportSheetResult(
+      send: true,
+      userMessage: userMessage,
+      env: _selectedEnv.toLowerCase(),
+      platform: _selectedPlatform.toLowerCase(),
+    ));
   }
 
   @override
