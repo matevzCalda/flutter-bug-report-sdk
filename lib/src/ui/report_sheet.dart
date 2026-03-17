@@ -2,20 +2,14 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
+import '../../calda_bug_sdk.dart';
+import '../auth/supabase.dart' as auth;
 import '../models.dart';
 
 class CaldaReportSheetResult {
-  final bool send;
-  final String userMessage;
-  final String env;
-  final String platform;
+  final bool sent;
 
-  const CaldaReportSheetResult({
-    required this.send,
-    required this.userMessage,
-    required this.env,
-    required this.platform,
-  });
+  const CaldaReportSheetResult({required this.sent});
 }
 
 const _borderColor = Color(0xFFE4E4E7);
@@ -160,16 +154,36 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   void _toggleItalic() => _wrapSelection('*', '*');
   void _toggleStrikethrough() => _wrapSelection('~~', '~~');
 
-  void _handleCreate() {
-    final userMessage =
-        '${_titleController.text.trim()}\n\n${_descriptionController.text.trim()}'
-            .trim();
-    Navigator.of(context).pop(CaldaReportSheetResult(
-      send: true,
-      userMessage: userMessage,
-      env: _selectedEnv.toLowerCase(),
-      platform: _selectedPlatform.toLowerCase(),
-    ));
+  Future<void> _handleCreate() async {
+    setState(() => _sending = true);
+    try {
+      final token = await auth.getAccessToken();
+      if (token == null) {
+        throw Exception('Not authenticated. Please log in first.');
+      }
+
+      final userMessage =
+          '${_titleController.text.trim()}\n\n${_descriptionController.text.trim()}'
+              .trim();
+
+      await CaldaBug.report(
+        userMessage: userMessage,
+        screenshotPng: widget.screenshotPng,
+        attachments: widget.attachments,
+        env: _selectedEnv.toLowerCase(),
+        extra: {'platform': _selectedPlatform.toLowerCase()},
+        token: token,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(const CaldaReportSheetResult(sent: true));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send report: $e')),
+      );
+    }
   }
 
   @override

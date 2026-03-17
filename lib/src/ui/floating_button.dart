@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 import '../../calda_bug_sdk.dart';
 import '../models.dart';
 import '../screenshot/capture.dart';
@@ -65,8 +66,21 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
         .auth
         .onAuthStateChange
         .listen((data) {
-      if (mounted) {
-        setState(() => _isAuthed = data.session != null);
+      if (!mounted) return;
+      // Only update auth state on definitive events.
+      // Avoid resetting _isAuthed on token-refresh or other transient events
+      // where session may momentarily be null.
+      if (data.event == AuthChangeEvent.signedIn ||
+          data.event == AuthChangeEvent.tokenRefreshed ||
+          data.event == AuthChangeEvent.initialSession) {
+        if (data.session != null) {
+          setState(() => _isAuthed = true);
+        } else if (data.event == AuthChangeEvent.initialSession) {
+          // No persisted session found on startup
+          setState(() => _isAuthed = false);
+        }
+      } else if (data.event == AuthChangeEvent.signedOut) {
+        setState(() => _isAuthed = false);
       }
     });
   }
@@ -170,36 +184,13 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       reproductionSummary: CaldaBug.getReproductionSummary(),
       attachments: attachments,
     );
-    if (result == null || !result.send) {
-      if (mounted) setState(() => _state = _FloatingState.idle);
-      return;
-    }
 
-    // Get auth token from session (like the web SDK)
-    final session = auth.getSession();
-    final token = session?.accessToken;
+    if (mounted) setState(() => _state = _FloatingState.idle);
 
-    try {
-      await CaldaBug.report(
-        userMessage: result.userMessage,
-        screenshotPng: screenshotPng,
-        attachments: attachments,
-        env: result.env,
-        extra: {'platform': result.platform},
-        token: token,
-      );
-
-      if (mounted) {
-        _showSuccessToast();
-        setState(() => _state = _FloatingState.idle);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _state = _FloatingState.idle);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send report: $e')),
-        );
-      }
+    // CaldaBug.report() is called inside the sheet itself.
+    // If sheet returned a sent result, show success toast.
+    if (result != null && result.sent && mounted) {
+      _showSuccessToast();
     }
   }
 
