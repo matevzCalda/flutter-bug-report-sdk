@@ -20,6 +20,9 @@ class Uploader {
 
     final formData = FormData();
 
+    // Required top-level form field
+    formData.fields.add(const MapEntry('platform', 'flutter'));
+
     // 1. Gzipped JSON payload
     formData.files.add(MapEntry(
       'files',
