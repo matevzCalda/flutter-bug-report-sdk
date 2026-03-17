@@ -60,34 +60,27 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       await auth.ensureSupabaseInitialized();
     }
     if (!mounted) return;
-    _checkAuth();
+    // Use async token check to determine if we have a valid session
+    final token = await auth.getAccessToken();
+    if (!mounted) return;
+    _isAuthed = token != null;
     setState(() {});
     _authSubscription = auth.getSupabaseClient()
         .auth
         .onAuthStateChange
         .listen((data) {
       if (!mounted) return;
-      // Only update auth state on definitive events.
-      // Avoid resetting _isAuthed on token-refresh or other transient events
-      // where session may momentarily be null.
-      if (data.event == AuthChangeEvent.signedIn ||
-          data.event == AuthChangeEvent.tokenRefreshed ||
-          data.event == AuthChangeEvent.initialSession) {
-        if (data.session != null) {
-          setState(() => _isAuthed = true);
-        } else if (data.event == AuthChangeEvent.initialSession) {
-          // No persisted session found on startup
-          setState(() => _isAuthed = false);
-        }
-      } else if (data.event == AuthChangeEvent.signedOut) {
+      if (data.event == AuthChangeEvent.signedOut) {
         setState(() => _isAuthed = false);
+      } else if (data.session != null) {
+        setState(() => _isAuthed = true);
       }
     });
   }
 
-  void _checkAuth() {
-    final session = auth.getSession();
-    _isAuthed = session != null;
+  Future<void> _checkAuth() async {
+    final token = await auth.getAccessToken();
+    _isAuthed = token != null;
   }
 
   @override
@@ -206,7 +199,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   Future<void> _openLoginSheet() async {
     final success = await showCaldaLoginSheet(context);
     if (success == true && mounted) {
-      _checkAuth();
+      await _checkAuth();
       setState(() {});
       _openMenu();
     }
@@ -312,7 +305,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
             await auth.signOut();
             _closeMenu();
             if (mounted) {
-              _checkAuth();
+              await _checkAuth();
               setState(() {});
             }
           },

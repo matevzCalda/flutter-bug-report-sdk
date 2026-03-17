@@ -15,32 +15,34 @@ Future<void> ensureSupabaseInitialized() async {
 
 SupabaseClient getSupabaseClient() => Supabase.instance.client;
 
+/// Synchronous session check — may return a stale/expired session.
+/// Use [getAccessToken] for a fresh token before making API calls.
 Session? getSession() {
   if (!_initialized) return null;
   return Supabase.instance.client.auth.currentSession;
 }
 
-/// Returns a fresh access token, refreshing the session if needed.
+/// Returns a fresh access token, matching the web SDK's async getSession().
+/// Calls auth.refreshSession() if current session is expired, ensuring the
+/// backend always receives a valid Bearer token.
 Future<String?> getAccessToken() async {
   if (!_initialized) return null;
   final auth = Supabase.instance.client.auth;
-  var session = auth.currentSession;
-  if (session == null) return null;
 
-  // If the token is expired or about to expire (within 30s), refresh it.
-  if (session.isExpired ||
-      (session.expiresAt != null &&
-          DateTime.fromMillisecondsSinceEpoch(session.expiresAt! * 1000)
-              .difference(DateTime.now())
-              .inSeconds <
-              30)) {
+  // First try the cached session
+  var session = auth.currentSession;
+
+  // If no session or token is expired, try refreshing
+  if (session == null || session.isExpired) {
     try {
       final response = await auth.refreshSession();
       session = response.session;
     } catch (_) {
-      // Fall back to current token even if refresh fails
+      // Refresh failed — no valid token available
+      return null;
     }
   }
+
   return session?.accessToken;
 }
 
