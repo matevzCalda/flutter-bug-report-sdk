@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../models.dart';
 
@@ -23,25 +24,29 @@ class Uploader {
     print('[CaldaBug] uploadReport: payloadGzipJson=${payloadGzipJson.length} bytes');
     print('[CaldaBug] uploadReport: screenshotPng=${screenshotPng?.length ?? 0} bytes');
     print('[CaldaBug] uploadReport: attachments=${attachments.length}');
-    print('[CaldaBug] uploadReport: authToken=${authToken.isNotEmpty ? "${authToken.substring(0, 10)}..." : "(empty)"}');
 
-    // Build the list of file parts
-    final files = <MultipartFile>[
-      // 1. Gzipped JSON payload
-      MultipartFile.fromBytes(
-        payloadGzipJson,
-        filename: 'payload.json.gz',
-        contentType: DioMediaType('application', 'gzip'),
-      ),
-    ];
+    final request = http.MultipartRequest('POST', endpoint);
+    request.headers['Authorization'] = 'Bearer $authToken';
+
+    // Required top-level form field
+    request.fields['platform'] = 'flutter';
+
+    // 1. Gzipped JSON payload
+    request.files.add(http.MultipartFile.fromBytes(
+      'files',
+      payloadGzipJson,
+      filename: 'payload.json.gz',
+      contentType: MediaType('application', 'gzip'),
+    ));
     print('[CaldaBug] added file: payload.json.gz (${payloadGzipJson.length} bytes, application/gzip)');
 
     // 2. Screenshot
     if (screenshotPng != null && screenshotPng.isNotEmpty) {
-      files.add(MultipartFile.fromBytes(
+      request.files.add(http.MultipartFile.fromBytes(
+        'files',
         screenshotPng,
         filename: 'screenshot.png',
-        contentType: DioMediaType('image', 'png'),
+        contentType: MediaType('image', 'png'),
       ));
       print('[CaldaBug] added file: screenshot.png (${screenshotPng.length} bytes, image/png)');
     } else {
@@ -53,58 +58,32 @@ class Uploader {
       final a = attachments[i];
       final ext = a.type == 'video' ? 'webm' : 'png';
       final name = a.filename ?? 'attachment_$i.$ext';
-      final DioMediaType ct;
+      final MediaType ct;
       if (a.type == 'video') {
         ct = name.endsWith('.mp4')
-            ? DioMediaType('video', 'mp4')
-            : DioMediaType('video', 'webm');
+            ? MediaType('video', 'mp4')
+            : MediaType('video', 'webm');
       } else {
-        ct = DioMediaType('image', 'png');
+        ct = MediaType('image', 'png');
       }
-      files.add(MultipartFile.fromBytes(a.data, filename: name, contentType: ct));
-      print('[CaldaBug] added file: $name (${a.data.length} bytes, ${ct.mimeType})');
+      request.files.add(http.MultipartFile.fromBytes(
+        'files',
+        a.data,
+        filename: name,
+        contentType: ct,
+      ));
+      print('[CaldaBug] added file: $name (${a.data.length} bytes, $ct)');
     }
 
-    final formData = FormData.fromMap({
-      'platform': 'flutter',
-      'files': files,
-    });
-
-    print('[CaldaBug] formData fields: ${formData.fields.map((e) => "${e.key}=${e.value}").toList()}');
-    print('[CaldaBug] formData files: ${formData.files.map((e) => "${e.key}=${e.value.filename}").toList()}');
-
-    final dio = Dio(BaseOptions(
-      connectTimeout: timeout,
-      receiveTimeout: timeout,
-      sendTimeout: timeout,
-      // Accept all status codes so we can read the response body on errors.
-      validateStatus: (_) => true,
-    ));
-
-    dio.interceptors.add(LogInterceptor(
-      requestHeader: true,
-      requestBody: true,
-      responseHeader: true,
-      responseBody: true,
-      logPrint: (o) => print('[CaldaBug/Dio] $o'),
-    ));
-
+    print('[CaldaBug] request fields: ${request.fields}');
+    print('[CaldaBug] request files: ${request.files.map((f) => "${f.field}=${f.filename}").toList()}');
     print('[CaldaBug] sending POST to $endpoint ...');
 
-    final response = await dio.postUri<String>(
-      endpoint,
-      data: formData,
-      options: Options(
-        headers: {'Authorization': 'Bearer $authToken'},
-        responseType: ResponseType.plain,
-      ),
-    );
-
-    final statusCode = response.statusCode ?? 0;
-    final body = response.data ?? '';
+    final streamed = await request.send().timeout(timeout);
+    final body = await streamed.stream.bytesToString();
+    final statusCode = streamed.statusCode;
 
     print('[CaldaBug] response: statusCode=$statusCode');
-    print('[CaldaBug] response headers: ${response.headers.map}');
     print('[CaldaBug] response body: $body');
 
     if (statusCode < 200 || statusCode >= 300) {
