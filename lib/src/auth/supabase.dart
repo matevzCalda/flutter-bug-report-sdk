@@ -3,31 +3,37 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 const _supabaseUrl = 'https://uubykxezfezmlsbqwbfx.supabase.co';
 const _supabaseKey = 'sb_publishable_D9buhiSqNLtbG06M1-LlvA_iWnPi9ef';
 
-bool _initialized = false;
+/// The SDK's own isolated Supabase client — completely separate from the
+/// host app's Supabase.instance singleton.
+SupabaseClient? _client;
 
-bool get isSupabaseInitialized => _initialized;
+bool get isSupabaseInitialized => _client != null;
 
 Future<void> ensureSupabaseInitialized() async {
-  if (_initialized) return;
-  await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseKey);
-  _initialized = true;
+  if (_client != null) return;
+  _client = SupabaseClient(_supabaseUrl, _supabaseKey);
 }
 
-SupabaseClient getSupabaseClient() => Supabase.instance.client;
+SupabaseClient getSupabaseClient() {
+  if (_client == null) {
+    throw StateError('CaldaBug Supabase not initialized. '
+        'Call ensureSupabaseInitialized() first.');
+  }
+  return _client!;
+}
 
 /// Synchronous session check — may return a stale/expired session.
 /// Use [getAccessToken] for a fresh token before making API calls.
 Session? getSession() {
-  if (!_initialized) return null;
-  return Supabase.instance.client.auth.currentSession;
+  return _client?.auth.currentSession;
 }
 
-/// Returns a fresh access token, matching the web SDK's async getSession().
-/// Calls auth.refreshSession() if current session is expired, ensuring the
-/// backend always receives a valid Bearer token.
+/// Returns a fresh access token.
+/// Refreshes the session if expired, ensuring the backend always receives
+/// a valid Bearer token.
 Future<String?> getAccessToken() async {
-  if (!_initialized) return null;
-  final auth = Supabase.instance.client.auth;
+  if (_client == null) return null;
+  final auth = _client!.auth;
 
   // First try the cached session
   var session = auth.currentSession;
