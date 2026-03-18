@@ -157,7 +157,11 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   Future<void> _handleCreate() async {
     setState(() => _sending = true);
     try {
+      print('[CaldaBug] _handleCreate: fetching access token...');
+      final session = auth.getSession();
+      print('[CaldaBug] _handleCreate: current session=${session != null ? "exists (expired=${session.isExpired})" : "null"}');
       final token = await auth.getAccessToken();
+      print('[CaldaBug] _handleCreate: token=${token != null ? "${token.substring(0, 10)}..." : "null"}');
       if (token == null) {
         throw Exception('Not authenticated. Please log in first.');
       }

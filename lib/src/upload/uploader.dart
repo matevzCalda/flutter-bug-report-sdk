@@ -81,6 +81,14 @@ class Uploader {
       validateStatus: (_) => true,
     ));
 
+    dio.interceptors.add(LogInterceptor(
+      requestHeader: true,
+      requestBody: true,
+      responseHeader: true,
+      responseBody: true,
+      logPrint: (o) => print('[CaldaBug/Dio] $o'),
+    ));
+
     print('[CaldaBug] sending POST to $endpoint ...');
 
     final response = await dio.postUri<String>(
