@@ -25,31 +25,23 @@ class Uploader {
     print('[CaldaBug] uploadReport: attachments=${attachments.length}');
     print('[CaldaBug] uploadReport: authToken=${authToken.isNotEmpty ? "${authToken.substring(0, 10)}..." : "(empty)"}');
 
-    final formData = FormData();
-
-    // Required top-level form field
-    formData.fields.add(const MapEntry('platform', 'flutter'));
-
-    // 1. Gzipped JSON payload
-    formData.files.add(MapEntry(
-      'files',
+    // Build the list of file parts
+    final files = <MultipartFile>[
+      // 1. Gzipped JSON payload
       MultipartFile.fromBytes(
         payloadGzipJson,
         filename: 'payload.json.gz',
         contentType: DioMediaType('application', 'gzip'),
       ),
-    ));
+    ];
     print('[CaldaBug] added file: payload.json.gz (${payloadGzipJson.length} bytes, application/gzip)');
 
     // 2. Screenshot
     if (screenshotPng != null && screenshotPng.isNotEmpty) {
-      formData.files.add(MapEntry(
-        'files',
-        MultipartFile.fromBytes(
-          screenshotPng,
-          filename: 'screenshot.png',
-          contentType: DioMediaType('image', 'png'),
-        ),
+      files.add(MultipartFile.fromBytes(
+        screenshotPng,
+        filename: 'screenshot.png',
+        contentType: DioMediaType('image', 'png'),
       ));
       print('[CaldaBug] added file: screenshot.png (${screenshotPng.length} bytes, image/png)');
     } else {
@@ -69,12 +61,14 @@ class Uploader {
       } else {
         ct = DioMediaType('image', 'png');
       }
-      formData.files.add(MapEntry(
-        'files',
-        MultipartFile.fromBytes(a.data, filename: name, contentType: ct),
-      ));
+      files.add(MultipartFile.fromBytes(a.data, filename: name, contentType: ct));
       print('[CaldaBug] added file: $name (${a.data.length} bytes, ${ct.mimeType})');
     }
+
+    final formData = FormData.fromMap({
+      'platform': 'flutter',
+      'files': files,
+    });
 
     print('[CaldaBug] formData fields: ${formData.fields.map((e) => "${e.key}=${e.value}").toList()}');
     print('[CaldaBug] formData files: ${formData.files.map((e) => "${e.key}=${e.value.filename}").toList()}');
