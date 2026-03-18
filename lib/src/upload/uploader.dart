@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
+
 import '../models.dart';
 
 class Uploader {
@@ -19,11 +19,11 @@ class Uploader {
   }) async {
     final authToken = token ?? apiKey;
 
-    debugPrint('[CaldaBug] uploadReport: endpoint=$endpoint');
-    debugPrint('[CaldaBug] uploadReport: payloadGzipJson=${payloadGzipJson.length} bytes');
-    debugPrint('[CaldaBug] uploadReport: screenshotPng=${screenshotPng?.length ?? 0} bytes');
-    debugPrint('[CaldaBug] uploadReport: attachments=${attachments.length}');
-    debugPrint('[CaldaBug] uploadReport: authToken=${authToken.isNotEmpty ? "${authToken.substring(0, 10)}..." : "(empty)"}');
+    print('[CaldaBug] uploadReport: endpoint=$endpoint');
+    print('[CaldaBug] uploadReport: payloadGzipJson=${payloadGzipJson.length} bytes');
+    print('[CaldaBug] uploadReport: screenshotPng=${screenshotPng?.length ?? 0} bytes');
+    print('[CaldaBug] uploadReport: attachments=${attachments.length}');
+    print('[CaldaBug] uploadReport: authToken=${authToken.isNotEmpty ? "${authToken.substring(0, 10)}..." : "(empty)"}');
 
     final formData = FormData();
 
@@ -39,7 +39,7 @@ class Uploader {
         contentType: DioMediaType('application', 'gzip'),
       ),
     ));
-    debugPrint('[CaldaBug] added file: payload.json.gz (${payloadGzipJson.length} bytes, application/gzip)');
+    print('[CaldaBug] added file: payload.json.gz (${payloadGzipJson.length} bytes, application/gzip)');
 
     // 2. Screenshot
     if (screenshotPng != null && screenshotPng.isNotEmpty) {
@@ -51,9 +51,9 @@ class Uploader {
           contentType: DioMediaType('image', 'png'),
         ),
       ));
-      debugPrint('[CaldaBug] added file: screenshot.png (${screenshotPng.length} bytes, image/png)');
+      print('[CaldaBug] added file: screenshot.png (${screenshotPng.length} bytes, image/png)');
     } else {
-      debugPrint('[CaldaBug] no screenshot attached');
+      print('[CaldaBug] no screenshot attached');
     }
 
     // 3. Extra attachments (images / videos)
@@ -73,11 +73,11 @@ class Uploader {
         'files',
         MultipartFile.fromBytes(a.data, filename: name, contentType: ct),
       ));
-      debugPrint('[CaldaBug] added file: $name (${a.data.length} bytes, ${ct.mimeType})');
+      print('[CaldaBug] added file: $name (${a.data.length} bytes, ${ct.mimeType})');
     }
 
-    debugPrint('[CaldaBug] formData fields: ${formData.fields.map((e) => "${e.key}=${e.value}").toList()}');
-    debugPrint('[CaldaBug] formData files: ${formData.files.map((e) => "${e.key}=${e.value.filename}").toList()}');
+    print('[CaldaBug] formData fields: ${formData.fields.map((e) => "${e.key}=${e.value}").toList()}');
+    print('[CaldaBug] formData files: ${formData.files.map((e) => "${e.key}=${e.value.filename}").toList()}');
 
     final dio = Dio(BaseOptions(
       connectTimeout: timeout,
@@ -87,7 +87,7 @@ class Uploader {
       validateStatus: (_) => true,
     ));
 
-    debugPrint('[CaldaBug] sending POST to $endpoint ...');
+    print('[CaldaBug] sending POST to $endpoint ...');
 
     final response = await dio.postUri<String>(
       endpoint,
@@ -101,9 +101,9 @@ class Uploader {
     final statusCode = response.statusCode ?? 0;
     final body = response.data ?? '';
 
-    debugPrint('[CaldaBug] response: statusCode=$statusCode');
-    debugPrint('[CaldaBug] response headers: ${response.headers.map}');
-    debugPrint('[CaldaBug] response body: $body');
+    print('[CaldaBug] response: statusCode=$statusCode');
+    print('[CaldaBug] response headers: ${response.headers.map}');
+    print('[CaldaBug] response body: $body');
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception('Upload failed ($statusCode): $body');

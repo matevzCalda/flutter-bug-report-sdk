@@ -172,17 +172,17 @@ class CaldaBug {
     );
 
     final payloadJson = jsonEncode(payload.toJson());
-    debugPrint('[CaldaBug] report payload JSON (${payloadJson.length} chars):');
+    print('[CaldaBug] report payload JSON (${payloadJson.length} chars):');
     // Print in chunks since debugPrint truncates long strings
     const chunkSize = 800;
     for (var i = 0; i < payloadJson.length; i += chunkSize) {
       final end = (i + chunkSize < payloadJson.length) ? i + chunkSize : payloadJson.length;
-      debugPrint('[CaldaBug] payload[${i ~/ chunkSize}]: ${payloadJson.substring(i, end)}');
+      print('[CaldaBug] payload[${i ~/ chunkSize}]: ${payloadJson.substring(i, end)}');
     }
-    debugPrint('[CaldaBug] screenshot: ${screenshotPng?.length ?? 0} bytes, attachments: ${attachments.length}');
+    print('[CaldaBug] screenshot: ${screenshotPng?.length ?? 0} bytes, attachments: ${attachments.length}');
 
     final gzJson = gzipJson(utf8.encode(payloadJson));
-    debugPrint('[CaldaBug] gzipped payload: ${gzJson.length} bytes');
+    print('[CaldaBug] gzipped payload: ${gzJson.length} bytes');
     return _uploader.uploadReport(
       payloadGzipJson: gzJson,
       screenshotPng: screenshotPng,
