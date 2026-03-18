@@ -30,7 +30,7 @@ const _descriptionHint = 'Write a description including:\n\n'
     '4. Attach screenshots or screen recordings if possible.\n'
     '5. Include the device and app version.';
 
-const _platformOptions = ['Web', 'Apple', 'Android', 'Figma'];
+const _platformOptions = ['apple', 'web', 'android', 'figma'];
 const _envOptions = ['STAGING', 'PRODUCTION'];
 
 Future<CaldaReportSheetResult?> showCaldaReportSheet(
@@ -81,11 +81,14 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   String _selectedEnv = 'STAGING';
-  String _selectedPlatform = 'Apple';
+  String _selectedPlatform = 'apple';
   bool _sending = false;
   bool _previewMode = false;
 
-  bool get _canCreate => _titleController.text.trim().isNotEmpty && !_sending;
+  bool get _canCreate =>
+      _titleController.text.trim().isNotEmpty &&
+      _descriptionController.text.trim().isNotEmpty &&
+      !_sending;
 
   @override
   void initState() {
@@ -157,21 +160,22 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   Future<void> _handleCreate() async {
     setState(() => _sending = true);
     try {
+      print('[CaldaBug] _handleCreate: fetching access token...');
+      final session = auth.getSession();
+      print('[CaldaBug] _handleCreate: current session=${session != null ? "exists (expired=${session.isExpired})" : "null"}');
       final token = await auth.getAccessToken();
+      print('[CaldaBug] _handleCreate: token=${token != null ? "${token.substring(0, 10)}..." : "null"}');
       if (token == null) {
         throw Exception('Not authenticated. Please log in first.');
       }
 
-      final userMessage =
-          '${_titleController.text.trim()}\n\n${_descriptionController.text.trim()}'
-              .trim();
-
       await CaldaBug.report(
-        userMessage: userMessage,
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        platform: _selectedPlatform,
+        environment: _selectedEnv.toLowerCase(),
         screenshotPng: widget.screenshotPng,
         attachments: widget.attachments,
-        env: _selectedEnv.toLowerCase(),
-        extra: {'platform': _selectedPlatform.toLowerCase()},
         token: token,
       );
 
@@ -510,7 +514,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          e,
+                          e.toUpperCase(),
                           style: const TextStyle(
                             fontSize: 12,
                             color: _sidebarForeground,
@@ -535,13 +539,13 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
 
   static IconData _platformIcon(String platform) {
     switch (platform) {
-      case 'Web':
+      case 'web':
         return Icons.language;
-      case 'Apple':
+      case 'apple':
         return Icons.apple;
-      case 'Android':
+      case 'android':
         return Icons.android;
-      case 'Figma':
+      case 'figma':
         return Icons.design_services;
       default:
         return Icons.device_unknown;

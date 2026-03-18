@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+
 import '../models.dart';
 
 class Uploader {
@@ -11,78 +13,72 @@ class Uploader {
   Uploader(this.endpoint, this.apiKey, {required this.timeout});
 
   Future<UploadResult> uploadReport({
-    required List<int> payloadGzipJson,
+    required String title,
+    required String description,
+    required String platform,
+    required String environment,
+    required String appVersion,
     Uint8List? screenshotPng,
     List<ReportAttachment> attachments = const [],
     String? token,
   }) async {
     final authToken = token ?? apiKey;
 
-    final formData = FormData();
+    print('[CaldaBug] uploadReport: endpoint=$endpoint');
 
-    // Required top-level form field
-    formData.fields.add(const MapEntry('platform', 'flutter'));
+    final request = http.MultipartRequest('POST', endpoint);
+    request.headers['Authorization'] = 'Bearer $authToken';
 
-    // 1. Gzipped JSON payload
-    formData.files.add(MapEntry(
-      'files',
-      MultipartFile.fromBytes(
-        payloadGzipJson,
-        filename: 'payload.json.gz',
-        contentType: DioMediaType('application', 'gzip'),
-      ),
-    ));
+    // Required form fields
+    request.fields['title'] = title;
+    request.fields['platform'] = platform;
+    request.fields['environment'] = environment;
+    request.fields['description'] = description;
+    request.fields['appVersion'] = appVersion;
 
-    // 2. Screenshot
+    print('[CaldaBug] fields: ${request.fields}');
+
+    // Screenshot
     if (screenshotPng != null && screenshotPng.isNotEmpty) {
-      formData.files.add(MapEntry(
+      request.files.add(http.MultipartFile.fromBytes(
         'files',
-        MultipartFile.fromBytes(
-          screenshotPng,
-          filename: 'screenshot.png',
-          contentType: DioMediaType('image', 'png'),
-        ),
+        screenshotPng,
+        filename: 'screenshot.png',
+        contentType: MediaType('image', 'png'),
       ));
+      print('[CaldaBug] added file: screenshot.png (${screenshotPng.length} bytes)');
     }
 
-    // 3. Extra attachments (images / videos)
+    // Extra attachments (images / videos)
     for (var i = 0; i < attachments.length; i++) {
       final a = attachments[i];
       final ext = a.type == 'video' ? 'webm' : 'png';
       final name = a.filename ?? 'attachment_$i.$ext';
-      final DioMediaType ct;
+      final MediaType ct;
       if (a.type == 'video') {
         ct = name.endsWith('.mp4')
-            ? DioMediaType('video', 'mp4')
-            : DioMediaType('video', 'webm');
+            ? MediaType('video', 'mp4')
+            : MediaType('video', 'webm');
       } else {
-        ct = DioMediaType('image', 'png');
+        ct = MediaType('image', 'png');
       }
-      formData.files.add(MapEntry(
+      request.files.add(http.MultipartFile.fromBytes(
         'files',
-        MultipartFile.fromBytes(a.data, filename: name, contentType: ct),
+        a.data,
+        filename: name,
+        contentType: ct,
       ));
+      print('[CaldaBug] added file: $name (${a.data.length} bytes, $ct)');
     }
 
-    final dio = Dio(BaseOptions(
-      connectTimeout: timeout,
-      receiveTimeout: timeout,
-      sendTimeout: timeout,
-      // Accept all status codes so we can read the response body on errors.
-      validateStatus: (_) => true,
-    ));
+    print('[CaldaBug] sending POST to $endpoint ...');
 
-    final response = await dio.postUri<String>(
-      endpoint,
-      data: formData,
-      options: Options(
-        headers: {'Authorization': 'Bearer $authToken'},
-        responseType: ResponseType.plain,
-      ),
-    );
+    final streamed = await request.send().timeout(timeout);
+    final body = await streamed.stream.bytesToString();
+    final statusCode = streamed.statusCode;
 
-    final statusCode = response.statusCode ?? 0;
-    final body = response.data ?? '';
+    print('[CaldaBug] response: statusCode=$statusCode');
+    print('[CaldaBug] response body: $body');
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception('Upload failed ($statusCode): $body');
