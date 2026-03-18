@@ -11,17 +11,12 @@ export 'src/recording/screen_record_recorder.dart';
 export 'src/auth/supabase.dart';
 export 'src/ui/login_screen.dart';
 
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 
 import 'src/config.dart';
 import 'src/models.dart';
 import 'src/ring_buffer.dart';
 import 'src/time.dart';
-import 'src/redaction.dart';
 import 'src/collectors/flutter_errors.dart';
 import 'src/collectors/debug_print.dart';
 import 'package:dio/dio.dart';
@@ -135,63 +130,25 @@ class CaldaBug {
   }
 
   static Future<UploadResult> report({
-    required String userMessage,
+    required String title,
+    required String description,
+    required String platform,
+    required String environment,
     Uint8List? screenshotPng,
     List<ReportAttachment> attachments = const [],
-    Map<String, Object?>? extra,
-    String? env,
     String? token,
   }) async {
     final c = config;
 
-    final events =
-        _buffer.snapshot().map((e) => e.redacted(c.redaction)).toList();
-
-    final stateSnapshot =
-        _snapshotProvider?.call() ?? const <String, Object?>{};
-    final payload = BugReportPayload(
-      schemaVersion: c.schemaVersion,
-      sdk: SdkInfo(
-        name: 'calda_bug_sdk',
-        version: c.sdkVersion,
-        platform: 'flutter',
-      ),
-      timestamp: DateTime.now().toUtc(),
-      env: env ?? c.env,
-      release: c.release,
-      app: c.app,
-      device: await DeviceInfo.collect(),
-      session: c.session,
-      userMessage: userMessage,
-      reproductionSummary: getReproductionSummaryFromEvents(events),
-      stateSnapshot: redactMap(stateSnapshot, c.redaction),
-      events: events,
-      extra: extra == null ? const {} : redactMap(extra, c.redaction),
-      hasScreenshot: screenshotPng != null && screenshotPng.isNotEmpty,
-      attachmentCount: attachments.length,
-    );
-
-    final payloadJson = jsonEncode(payload.toJson());
-    print('[CaldaBug] report payload JSON (${payloadJson.length} chars):');
-    // Print in chunks since debugPrint truncates long strings
-    const chunkSize = 800;
-    for (var i = 0; i < payloadJson.length; i += chunkSize) {
-      final end = (i + chunkSize < payloadJson.length) ? i + chunkSize : payloadJson.length;
-      print('[CaldaBug] payload[${i ~/ chunkSize}]: ${payloadJson.substring(i, end)}');
-    }
-    print('[CaldaBug] screenshot: ${screenshotPng?.length ?? 0} bytes, attachments: ${attachments.length}');
-
-    final gzJson = gzipJson(utf8.encode(payloadJson));
-    print('[CaldaBug] gzipped payload: ${gzJson.length} bytes');
     return _uploader.uploadReport(
-      payloadGzipJson: gzJson,
+      title: title,
+      description: description,
+      platform: platform,
+      environment: environment,
+      appVersion: c.app.version,
       screenshotPng: screenshotPng,
       attachments: attachments,
       token: token,
     );
-  }
-
-  static List<int> gzipJson(List<int> bytes) {
-    return gzip.encode(bytes);
   }
 }

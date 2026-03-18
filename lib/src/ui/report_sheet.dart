@@ -166,16 +166,13 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
         throw Exception('Not authenticated. Please log in first.');
       }
 
-      final userMessage =
-          '${_titleController.text.trim()}\n\n${_descriptionController.text.trim()}'
-              .trim();
-
       await CaldaBug.report(
-        userMessage: userMessage,
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        platform: _selectedPlatform.toLowerCase(),
+        environment: _selectedEnv.toLowerCase(),
         screenshotPng: widget.screenshotPng,
         attachments: widget.attachments,
-        env: _selectedEnv.toLowerCase(),
-        extra: {'platform': _selectedPlatform.toLowerCase()},
         token: token,
       );
 

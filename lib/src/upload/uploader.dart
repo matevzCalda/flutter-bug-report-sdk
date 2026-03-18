@@ -13,7 +13,11 @@ class Uploader {
   Uploader(this.endpoint, this.apiKey, {required this.timeout});
 
   Future<UploadResult> uploadReport({
-    required List<int> payloadGzipJson,
+    required String title,
+    required String description,
+    required String platform,
+    required String environment,
+    required String appVersion,
     Uint8List? screenshotPng,
     List<ReportAttachment> attachments = const [],
     String? token,
@@ -21,26 +25,20 @@ class Uploader {
     final authToken = token ?? apiKey;
 
     print('[CaldaBug] uploadReport: endpoint=$endpoint');
-    print('[CaldaBug] uploadReport: payloadGzipJson=${payloadGzipJson.length} bytes');
-    print('[CaldaBug] uploadReport: screenshotPng=${screenshotPng?.length ?? 0} bytes');
-    print('[CaldaBug] uploadReport: attachments=${attachments.length}');
 
     final request = http.MultipartRequest('POST', endpoint);
     request.headers['Authorization'] = 'Bearer $authToken';
 
-    // Required top-level form field
-    request.fields['platform'] = 'flutter';
+    // Required form fields
+    request.fields['title'] = title;
+    request.fields['platform'] = platform;
+    request.fields['environment'] = environment;
+    request.fields['description'] = description;
+    request.fields['appVersion'] = appVersion;
 
-    // 1. Gzipped JSON payload
-    request.files.add(http.MultipartFile.fromBytes(
-      'files',
-      payloadGzipJson,
-      filename: 'payload.json.gz',
-      contentType: MediaType('application', 'gzip'),
-    ));
-    print('[CaldaBug] added file: payload.json.gz (${payloadGzipJson.length} bytes, application/gzip)');
+    print('[CaldaBug] fields: ${request.fields}');
 
-    // 2. Screenshot
+    // Screenshot
     if (screenshotPng != null && screenshotPng.isNotEmpty) {
       request.files.add(http.MultipartFile.fromBytes(
         'files',
@@ -48,12 +46,10 @@ class Uploader {
         filename: 'screenshot.png',
         contentType: MediaType('image', 'png'),
       ));
-      print('[CaldaBug] added file: screenshot.png (${screenshotPng.length} bytes, image/png)');
-    } else {
-      print('[CaldaBug] no screenshot attached');
+      print('[CaldaBug] added file: screenshot.png (${screenshotPng.length} bytes)');
     }
 
-    // 3. Extra attachments (images / videos)
+    // Extra attachments (images / videos)
     for (var i = 0; i < attachments.length; i++) {
       final a = attachments[i];
       final ext = a.type == 'video' ? 'webm' : 'png';
@@ -75,8 +71,6 @@ class Uploader {
       print('[CaldaBug] added file: $name (${a.data.length} bytes, $ct)');
     }
 
-    print('[CaldaBug] request fields: ${request.fields}');
-    print('[CaldaBug] request files: ${request.files.map((f) => "${f.field}=${f.filename}").toList()}');
     print('[CaldaBug] sending POST to $endpoint ...');
 
     final streamed = await request.send().timeout(timeout);
