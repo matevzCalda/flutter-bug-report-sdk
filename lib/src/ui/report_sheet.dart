@@ -30,7 +30,7 @@ const _descriptionHint = 'Write a description including:\n\n'
     '4. Attach screenshots or screen recordings if possible.\n'
     '5. Include the device and app version.';
 
-const _platformOptions = ['Web', 'Apple', 'Android', 'Figma'];
+const _platformOptions = ['apple', 'web', 'android', 'figma'];
 const _envOptions = ['STAGING', 'PRODUCTION'];
 
 Future<CaldaReportSheetResult?> showCaldaReportSheet(
@@ -81,11 +81,14 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   String _selectedEnv = 'STAGING';
-  String _selectedPlatform = 'Apple';
+  String _selectedPlatform = 'apple';
   bool _sending = false;
   bool _previewMode = false;
 
-  bool get _canCreate => _titleController.text.trim().isNotEmpty && !_sending;
+  bool get _canCreate =>
+      _titleController.text.trim().isNotEmpty &&
+      _descriptionController.text.trim().isNotEmpty &&
+      !_sending;
 
   @override
   void initState() {
@@ -169,7 +172,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
       await CaldaBug.report(
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        platform: _selectedPlatform.toLowerCase(),
+        platform: _selectedPlatform,
         environment: _selectedEnv.toLowerCase(),
         screenshotPng: widget.screenshotPng,
         attachments: widget.attachments,
@@ -511,7 +514,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          e,
+                          e.toUpperCase(),
                           style: const TextStyle(
                             fontSize: 12,
                             color: _sidebarForeground,
@@ -536,13 +539,13 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
 
   static IconData _platformIcon(String platform) {
     switch (platform) {
-      case 'Web':
+      case 'web':
         return Icons.language;
-      case 'Apple':
+      case 'apple':
         return Icons.apple;
-      case 'Android':
+      case 'android':
         return Icons.android;
-      case 'Figma':
+      case 'figma':
         return Icons.design_services;
       default:
         return Icons.device_unknown;
