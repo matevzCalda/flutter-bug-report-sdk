@@ -1,10 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 import '../models.dart';
+
+void debugLog(String msg) {
+  if (kDebugMode) debugPrint(msg);
+}
 
 class Uploader {
   final Uri endpoint;
@@ -24,7 +29,15 @@ class Uploader {
     final request = http.MultipartRequest('POST', endpoint);
     request.headers['Authorization'] = 'Bearer $authToken';
 
-    // Payload as gzipped JSON file (matches web SDK)
+    // Required form fields
+    final platformExtra = payload.extra['platform'];
+    request.fields['title'] = payload.userMessage.split('\n').first;
+    request.fields['description'] = payload.userMessage;
+    request.fields['platform'] = platformExtra is String ? platformExtra : payload.device.platform;
+    request.fields['environment'] = payload.env;
+    request.fields['appVersion'] = payload.app.version;
+
+    // Full payload as gzipped JSON file
     final payloadJson = jsonEncode(payload.toJson());
     final payloadGzip = gzip.encode(utf8.encode(payloadJson));
     request.files.add(http.MultipartFile.fromBytes(
@@ -34,6 +47,9 @@ class Uploader {
       contentType: MediaType('application', 'gzip'),
     ));
 
+    debugLog('[CaldaBug] fields: ${request.fields}');
+    debugLog('[CaldaBug] payload JSON length: ${payloadJson.length}');
+
     // Screenshot
     if (screenshotPng != null && screenshotPng.isNotEmpty) {
       request.files.add(http.MultipartFile.fromBytes(
@@ -42,6 +58,7 @@ class Uploader {
         filename: 'screenshot.png',
         contentType: MediaType('image', 'png'),
       ));
+      debugLog('[CaldaBug] added file: screenshot.png (${screenshotPng.length} bytes)');
     }
 
     // Extra attachments (images / videos)
@@ -63,11 +80,16 @@ class Uploader {
         filename: name,
         contentType: ct,
       ));
+      debugLog('[CaldaBug] added file: $name (${a.data.length} bytes)');
     }
 
+    debugLog('[CaldaBug] sending POST to $endpoint (${request.files.length} files)...');
     final streamed = await request.send().timeout(timeout);
     final body = await streamed.stream.bytesToString();
     final statusCode = streamed.statusCode;
+
+    debugLog('[CaldaBug] response: statusCode=$statusCode');
+    debugLog('[CaldaBug] response body: $body');
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception('Upload failed ($statusCode): $body');
