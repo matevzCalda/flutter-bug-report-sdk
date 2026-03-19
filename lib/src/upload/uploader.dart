@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -23,9 +24,15 @@ class Uploader {
     final request = http.MultipartRequest('POST', endpoint);
     request.headers['Authorization'] = 'Bearer $authToken';
 
-    // Required top-level form fields
-    request.fields['platform'] = payload.extra['platform'] as String? ?? payload.device.platform;
-    request.fields['payload'] = jsonEncode(payload.toJson());
+    // Payload as gzipped JSON file (matches web SDK)
+    final payloadJson = jsonEncode(payload.toJson());
+    final payloadGzip = gzip.encode(utf8.encode(payloadJson));
+    request.files.add(http.MultipartFile.fromBytes(
+      'files',
+      payloadGzip,
+      filename: 'payload.json.gz',
+      contentType: MediaType('application', 'gzip'),
+    ));
 
     // Screenshot
     if (screenshotPng != null && screenshotPng.isNotEmpty) {
