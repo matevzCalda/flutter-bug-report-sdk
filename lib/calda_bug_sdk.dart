@@ -134,18 +134,37 @@ class CaldaBug {
     required String description,
     required String platform,
     required String environment,
+    required DeviceInfo deviceInfo,
     Uint8List? screenshotPng,
     List<ReportAttachment> attachments = const [],
     String? token,
   }) async {
     final c = config;
 
+    final payload = BugReportPayload(
+      schemaVersion: c.schemaVersion,
+      sdk: SdkInfo(
+        name: 'calda-bug-sdk',
+        version: c.sdkVersion,
+        platform: 'flutter',
+      ),
+      timestamp: DateTime.now().toUtc(),
+      env: environment,
+      release: c.release,
+      app: c.app,
+      device: deviceInfo,
+      session: c.session,
+      userMessage: '$title\n\n$description',
+      reproductionSummary: getReproductionSummary(),
+      stateSnapshot: _snapshotProvider?.call() ?? {},
+      events: _buffer.snapshot(),
+      extra: {'platform': platform},
+      hasScreenshot: screenshotPng != null && screenshotPng.isNotEmpty,
+      attachmentCount: attachments.length,
+    );
+
     return _uploader.uploadReport(
-      title: title,
-      description: description,
-      platform: platform,
-      environment: environment,
-      appVersion: c.app.version,
+      payload: payload,
       screenshotPng: screenshotPng,
       attachments: attachments,
       token: token,

@@ -25,8 +25,7 @@ Future<Uint8List?> capturePng({
     final image = await boundary.toImage(pixelRatio: pixelRatio);
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
     return bytes?.buffer.asUint8List();
-  } catch (e) {
-    debugPrint('CaldaBug: screenshot capture failed: $e');
+  } catch (_) {
     return null;
   }
 }

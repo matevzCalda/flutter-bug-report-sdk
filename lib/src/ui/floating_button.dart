@@ -162,16 +162,17 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
   }) async {
     final consoleLines = CaldaBug.getLastLogLines(limit: 500);
     final deviceInfo = await DeviceInfo.collect();
-    final deviceInfoMap = deviceInfo.toDisplayMap();
-    deviceInfoMap['Theme'] =
+    final deviceInfoDisplay = deviceInfo.toDisplayMap();
+    deviceInfoDisplay['Theme'] =
         Theme.of(context).brightness == Brightness.dark ? 'dark' : 'light';
-    deviceInfoMap['Locale'] = Localizations.localeOf(context).toString();
+    deviceInfoDisplay['Locale'] = Localizations.localeOf(context).toString();
     if (!mounted) return;
     final result = await showCaldaReportSheet(
       context,
       screenshotPng: screenshotPng,
       consoleLines: consoleLines,
-      deviceInfo: deviceInfoMap,
+      deviceInfoData: deviceInfo,
+      deviceInfoDisplay: deviceInfoDisplay,
       reproductionSummary: CaldaBug.getReproductionSummary(),
       attachments: attachments,
     );

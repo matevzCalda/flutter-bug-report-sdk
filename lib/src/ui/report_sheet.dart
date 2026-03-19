@@ -30,14 +30,15 @@ const _descriptionHint = 'Write a description including:\n\n'
     '4. Attach screenshots or screen recordings if possible.\n'
     '5. Include the device and app version.';
 
-const _platformOptions = ['apple', 'web', 'android', 'figma'];
+const _platformOptions = ['ios', 'web', 'android', 'figma', 'testflight'];
 const _envOptions = ['STAGING', 'PRODUCTION'];
 
 Future<CaldaReportSheetResult?> showCaldaReportSheet(
   BuildContext context, {
   required Uint8List? screenshotPng,
   required List<String> consoleLines,
-  Map<String, String>? deviceInfo,
+  required DeviceInfo deviceInfoData,
+  Map<String, String>? deviceInfoDisplay,
   String? reproductionSummary,
   List<ReportAttachment> attachments = const [],
 }) async {
@@ -49,7 +50,8 @@ Future<CaldaReportSheetResult?> showCaldaReportSheet(
       return _CaldaReportSheetContent(
         screenshotPng: screenshotPng,
         consoleLines: consoleLines,
-        deviceInfo: deviceInfo ?? {},
+        deviceInfoData: deviceInfoData,
+        deviceInfoDisplay: deviceInfoDisplay ?? {},
         reproductionSummary: reproductionSummary,
         attachments: attachments,
       );
@@ -60,14 +62,16 @@ Future<CaldaReportSheetResult?> showCaldaReportSheet(
 class _CaldaReportSheetContent extends StatefulWidget {
   final Uint8List? screenshotPng;
   final List<String> consoleLines;
-  final Map<String, String> deviceInfo;
+  final DeviceInfo deviceInfoData;
+  final Map<String, String> deviceInfoDisplay;
   final String? reproductionSummary;
   final List<ReportAttachment> attachments;
 
   const _CaldaReportSheetContent({
     required this.screenshotPng,
     required this.consoleLines,
-    required this.deviceInfo,
+    required this.deviceInfoData,
+    required this.deviceInfoDisplay,
     required this.reproductionSummary,
     required this.attachments,
   });
@@ -81,7 +85,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   String _selectedEnv = 'STAGING';
-  String _selectedPlatform = 'apple';
+  String _selectedPlatform = 'ios';
   bool _sending = false;
   bool _previewMode = false;
 
@@ -160,11 +164,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
   Future<void> _handleCreate() async {
     setState(() => _sending = true);
     try {
-      print('[CaldaBug] _handleCreate: fetching access token...');
-      final session = auth.getSession();
-      print('[CaldaBug] _handleCreate: current session=${session != null ? "exists (expired=${session.isExpired})" : "null"}');
       final token = await auth.getAccessToken();
-      print('[CaldaBug] _handleCreate: token=${token != null ? "${token.substring(0, 10)}..." : "null"}');
       if (token == null) {
         throw Exception('Not authenticated. Please log in first.');
       }
@@ -174,6 +174,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
         description: _descriptionController.text.trim(),
         platform: _selectedPlatform,
         environment: _selectedEnv.toLowerCase(),
+        deviceInfo: widget.deviceInfoData,
         screenshotPng: widget.screenshotPng,
         attachments: widget.attachments,
         token: token,
@@ -514,7 +515,7 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          e.toUpperCase(),
+                          '${e[0].toUpperCase()}${e.substring(1)}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: _sidebarForeground,
@@ -541,12 +542,14 @@ class _CaldaReportSheetContentState extends State<_CaldaReportSheetContent> {
     switch (platform) {
       case 'web':
         return Icons.language;
-      case 'apple':
+      case 'ios':
         return Icons.apple;
       case 'android':
         return Icons.android;
       case 'figma':
         return Icons.design_services;
+      case 'testflight':
+        return Icons.flight;
       default:
         return Icons.device_unknown;
     }
