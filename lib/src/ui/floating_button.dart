@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
+import 'package:url_launcher/url_launcher.dart';
 import '../../calda_bug_sdk.dart';
 import '../models.dart';
 import '../screenshot/capture.dart';
@@ -63,10 +64,8 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
     if (!mounted) return;
     _isAuthed = token != null;
     setState(() {});
-    _authSubscription = auth.getSupabaseClient()
-        .auth
-        .onAuthStateChange
-        .listen((data) {
+    _authSubscription =
+        auth.getSupabaseClient().auth.onAuthStateChange.listen((data) {
       if (!mounted) return;
       if (data.event == AuthChangeEvent.signedOut) {
         setState(() => _isAuthed = false);
@@ -227,8 +226,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
               right: size.width - buttonRect.right,
               bottom: size.height - buttonRect.top + 8,
               child: ConstrainedBox(
-                constraints:
-                    const BoxConstraints(minWidth: 220, maxWidth: 320),
+                constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
                 child: Material(
                   elevation: 8,
                   borderRadius: BorderRadius.circular(12),
@@ -294,7 +292,10 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
         _menuItem(
           label: 'Manage user',
           onTap: () {
-            // placeholder – same as web
+            launchUrl(
+              Uri.parse('https://calda-bugsense-frontend.vercel.app/login'),
+              mode: LaunchMode.externalApplication,
+            );
             _closeMenu();
           },
         ),
@@ -372,8 +373,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content:
-                    Text('Recording could not be exported. Try again.')),
+                content: Text('Recording could not be exported. Try again.')),
           );
         }
       }
@@ -413,8 +413,7 @@ class _CaldaBugFloatingButtonState extends State<CaldaBugFloatingButton> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content:
-                  Text('Recording could not be exported. Try again.')),
+              content: Text('Recording could not be exported. Try again.')),
         );
       }
     }

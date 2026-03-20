@@ -121,7 +121,8 @@ class _LoginSheetContentState extends State<_LoginSheetContent> {
                     child: const SizedBox(
                       width: 20,
                       height: 20,
-                      child: Icon(Icons.close, size: 20, color: _sidebarForeground),
+                      child: Icon(Icons.close,
+                          size: 20, color: _sidebarForeground),
                     ),
                   ),
                 ),
@@ -243,8 +244,10 @@ class _LoginSheetContentState extends State<_LoginSheetContent> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _foregroundColor,
                       foregroundColor: _primaryForeground,
-                      disabledBackgroundColor: _foregroundColor.withValues(alpha: 0.5),
-                      disabledForegroundColor: _primaryForeground.withValues(alpha: 0.5),
+                      disabledBackgroundColor:
+                          _foregroundColor.withValues(alpha: 0.5),
+                      disabledForegroundColor:
+                          _primaryForeground.withValues(alpha: 0.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(9999),
                       ),
@@ -262,7 +265,8 @@ class _LoginSheetContentState extends State<_LoginSheetContent> {
                   child: GestureDetector(
                     onTap: () {
                       launchUrl(
-                        Uri.parse('https://google.com'),
+                        Uri.parse(
+                            'https://calda-bugsense-frontend.vercel.app/login'),
                         mode: LaunchMode.externalApplication,
                       );
                     },
